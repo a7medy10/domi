@@ -100,7 +100,8 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   background:radial-gradient(ellipse at 50% 45%, rgba(0,255,136,.12) 0%, #0e1715 50%, #0a100e 100%);
   border:2px solid rgba(0,255,136,.28);
   box-shadow:inset 0 0 90px rgba(0,255,136,.07), inset 0 0 0 1px rgba(255,255,255,.04), 0 24px 60px rgba(0,0,0,.6), 0 0 44px rgba(0,255,136,.14);z-index:0}
-#board-chain{position:relative;z-index:2;display:flex;gap:4px;align-items:center;max-width:74vw;overflow-x:auto;padding:0 14px}
+#board-chain{position:relative;z-index:2;display:flex;gap:4px;align-items:center;max-width:74vw;overflow-x:auto;overflow-y:hidden;padding:0 14px;scrollbar-width:none;-ms-overflow-style:none}
+#board-chain::-webkit-scrollbar{display:none;width:0;height:0}
 #board-ends{position:absolute;top:-46px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center}
 .end{display:flex;flex-direction:column;align-items:center;gap:2px}
 .end .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
