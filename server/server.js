@@ -101,7 +101,7 @@ function newRoom(code) {
     roundTimer: null,
     seats: [0, 1, 2, 3].map(i => ({
       seat: i, name: `Seat ${i + 1}`, avatar: '🙂', occupied: false, isBot: false,
-      connected: false, token: null, ws: null
+      connected: false, token: null, ws: null, lastMove: ''
     })),
     game: null
   };
@@ -126,7 +126,8 @@ function buildState(room, viewerSeat) {
     occupied: s.occupied, isBot: s.isBot,
     connected: s.connected, team: E.teamOf(s.seat),
     handCount: g ? g.hands[s.seat].length : 0,
-    score: (g && !room.teams && g.scores[s.seat] != null) ? g.scores[s.seat] : 0
+    score: (g && !room.teams && g.scores[s.seat] != null) ? g.scores[s.seat] : 0,
+    lastMove: s.lastMove || ''
   }));
 
   let hand = [], hasMove = false, canDraw = false, canPass = false;
@@ -238,6 +239,7 @@ function doPlay(room, seat, tileId, side, isAutoMove) {
   g.hands[seat] = g.hands[seat].filter(t => t.id !== tileId);
   E.placeTile(g, seat, tile, side);
   g.passes = 0;
+  room.seats[seat].lastMove = `[${tile.top}|${tile.bottom}] ${side === 'left' ? '⟵' : '⟶'}`;
   roomLog(room, `${g.names[seat]} played [${tile.top}|${tile.bottom}] ${side === 'left' ? '⟵' : '⟶'}`);
 
   if (!g.hands[seat].length) return endRound(room, seat, `${g.names[seat]} cleared their hand`);
@@ -251,6 +253,7 @@ function doDraw(room, seat) {
   if (!room.draw || !g.boneyard.length || E.anyCanPlay(g, seat)) return; // only draw when allowed & stuck
   g.hands[seat].push(g.boneyard.pop());
   g.passes = 0;
+  room.seats[seat].lastMove = 'drew';
   roomLog(room, `${g.names[seat]} drew a tile`);
   beginTurn(room); // same seat keeps the turn; recomputes options
 }
@@ -261,6 +264,7 @@ function doPass(room, seat, isAutoMove) {
   if (E.anyCanPlay(g, seat)) return;                  // can't pass with a legal move
   if (room.draw && g.boneyard.length) return;          // must draw first
   g.passes++;
+  room.seats[seat].lastMove = 'passed';
   roomLog(room, `${g.names[seat]} passed`);
   if (g.passes >= g.numPlayers || E.isBlocked(g)) return endBlocked(room);
   g.current = (g.current + 1) % g.numPlayers;
@@ -333,6 +337,7 @@ function startNextRound(room) {
   if (room.roundTimer) { clearTimeout(room.roundTimer); room.roundTimer = null; }
   if (room.phase !== 'roundEnd') return;
   room.roundNum++;
+  room.seats.forEach(s => s.lastMove = '');
   E.startRound(room.game, room.lastWinner);
   room.lastRound = null;
   room.phase = 'playing';   // beginTurn() bails unless room phase is 'playing'
@@ -345,6 +350,7 @@ function startGame(room) {
   activeSeats(room).forEach((s, i) => {
     if (!s.occupied) { s.isBot = true; s.name = botNames[i]; }
   });
+  room.seats.forEach(s => s.lastMove = '');
   const names = activeSeats(room).map(s => s.name);
   const scores = room.teams ? { A: 0, B: 0 } : {};
   if (!room.teams) for (let i = 0; i < room.numPlayers; i++) scores[i] = 0;

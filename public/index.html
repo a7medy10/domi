@@ -50,16 +50,19 @@ header h1{font-size:16px;font-weight:800;color:#00ff88}
 header .code{font-family:monospace;font-size:12px;color:rgba(255,255,255,.55)}
 header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.08);border:none;color:#e5e2e1;cursor:pointer}
 
-/* Score bar */
-#score-bar{position:fixed;top:52px;left:0;right:0;z-index:40;padding:8px 16px}
-#score-bar .glass{padding:10px}
-.team-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.team-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.team-score{font-size:20px;font-weight:800;font-family:monospace}
-.bar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-bottom:4px}
-.bar-fill{height:100%;border-radius:2px;transition:width .4s ease}
-.bar-a{background:#00ff88}.bar-b{background:#ffb4ab}
-.meta{text-align:center;font-size:10px;color:rgba(255,255,255,.4);font-family:monospace;margin-top:2px}
+/* Compact score chip in the corner */
+#score-bar{position:fixed;top:50px;left:10px;z-index:40;display:flex;align-items:center;gap:6px;
+  background:rgba(20,22,21,.7);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;padding:5px 10px;font-family:monospace;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#score-teams{display:flex;gap:8px}
+.sc-chip{display:flex;align-items:center;gap:4px;font-weight:700;color:rgba(255,255,255,.7)}
+.sc-chip i{width:7px;height:7px;border-radius:50%}
+.sc-chip b{font-size:13px;color:#e5e2e1}
+#score-ffa{display:flex;gap:8px;flex-wrap:wrap}
+.sc-chip2{display:flex;align-items:center;gap:3px;font-weight:700}
+.sc-chip2 b{font-size:13px;color:#e5e2e1}
+.sc-chip2.lead b{color:#00ff88}
+.sc-tgt{color:rgba(255,255,255,.4);font-size:11px}
 
 /* Players seated around the table — each on a side, styled as a seat plate */
 .opp{position:fixed;z-index:12;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -81,6 +84,9 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .opp-mini i{width:6px;height:12px;border-radius:2px;background:#2a2a2a;border:1px solid rgba(255,255,255,.12)}
 .opp-name{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.6);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .opp-tag{font-size:8px;font-family:monospace;color:#00ff88}
+.opp-move{font-size:9px;font-family:monospace;color:#00ff88;min-height:11px;background:rgba(0,255,136,.1);border-radius:6px;padding:0 5px}
+.opp-move:empty{background:none}
+#my-move{font-size:11px;font-family:monospace;color:#00ff88;margin-top:3px;min-height:13px}
 .opp-thinking{position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:#00ff88;animation:spin .8s linear infinite}
 
 /* Board / felt table */
@@ -96,18 +102,17 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .end .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
 .end .value{width:28px;height:28px;border-radius:50%;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#00ff88}
 
-/* Log */
-#log{position:fixed;top:210px;left:50%;transform:translateX(-50%);z-index:20;max-width:300px;width:90%;pointer-events:none}
-#log .msg{font-family:monospace;font-size:11px;padding:5px 11px;border-radius:999px;background:rgba(42,42,42,.8);border:1px solid rgba(255,255,255,.1);margin-bottom:4px;text-align:center;backdrop-filter:blur(8px);color:rgba(255,255,255,.7)}
-
-/* Controls — action buttons centered in front of the player; boneyard tucked left */
-#controls{position:fixed;bottom:180px;left:0;right:0;padding:0 16px;display:flex;justify-content:center;align-items:flex-end;z-index:20}
-#boneyard{position:absolute;left:16px;bottom:0}
+/* Controls — boneyard only (action buttons now live in the player panel) */
+#controls{position:fixed;bottom:184px;left:0;right:0;padding:0 16px;display:flex;justify-content:flex-start;align-items:flex-end;z-index:11;pointer-events:none}
+#boneyard{position:absolute;left:16px;bottom:0;pointer-events:auto}
 #boneyard .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
 #boneyard .pile{display:flex;align-items:center;gap:6px;margin-top:4px}
 #boneyard .card{width:24px;height:36px;background:#2a2a2a;border:1px solid rgba(255,255,255,.12);border-radius:4px;transform:rotate(-8deg)}
 #boneyard .num{font-family:monospace;font-size:13px;color:rgba(255,255,255,.6)}
-#action-btns{display:flex;gap:8px}
+#action-btns{display:flex;gap:8px;flex-shrink:0}
+#action-btns button{padding:10px 16px;font-size:13px;border-radius:14px}
+#pass-btn{background:rgba(255,180,171,.12)}
+#pass-btn:not(:disabled){border-color:#ffb4ab;color:#ffb4ab}
 
 /* Player */
 #player-area{position:fixed;bottom:0;left:0;right:0;z-index:30}
@@ -240,9 +245,6 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 </style>
 </head>
 <body>
-</style>
-</head>
-<body>
 
 <!-- ===== GAME VIEW (hidden until playing) ===== -->
 <div id="game-view" class="hidden">
@@ -259,28 +261,18 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     </div>
   </header>
 
-  <div id="score-bar"><div class="glass">
+  <div id="score-bar">
     <div id="score-teams">
-      <div class="team-row">
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div><span class="team-name" style="color:#00ff88">Team A</span></div>
-        <span class="team-score" id="sa" style="color:#00ff88">0</span>
-      </div>
-      <div class="bar"><div class="bar-fill bar-a" id="ba" style="width:0%"></div></div>
-      <div class="team-row">
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ffb4ab"></div><span class="team-name" style="color:#ffb4ab">Team B</span></div>
-        <span class="team-score" id="sb" style="color:#ffb4ab">0</span>
-      </div>
-      <div class="bar"><div class="bar-fill bar-b" id="bb" style="width:0%"></div></div>
+      <span class="sc-chip"><i style="background:#00ff88"></i>A <b id="sa">0</b></span>
+      <span class="sc-chip"><i style="background:#ffb4ab"></i>B <b id="sb">0</b></span>
     </div>
     <div id="score-ffa" class="hidden"></div>
-    <div class="meta">First to <span id="tgt">101</span> wins</div>
-  </div></div>
+    <span class="sc-tgt">→<span id="tgt">101</span></span>
+  </div>
 
   <div class="opp" id="opp-top"></div>
   <div class="opp" id="opp-left"></div>
   <div class="opp" id="opp-right"></div>
-
-  <div id="log"></div>
 
   <div id="board-area">
     <div id="table-felt"></div>
@@ -297,10 +289,6 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
       <div class="label">Boneyard</div>
       <div class="pile"><div class="card"></div><span class="num" id="bone">0</span></div>
     </div>
-    <div id="action-btns">
-      <button class="btn-ghost" id="pass-btn" onclick="act('pass')" disabled>⏭️ PASS</button>
-      <button class="btn-primary" id="draw-btn" onclick="act('draw')" disabled>🎴 DRAW</button>
-    </div>
   </div>
 
   <div id="player-area"><div id="player-panel">
@@ -310,9 +298,13 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
         <div>
           <div id="timer-wrap"><span id="turn-label">Your Turn</span><span id="timer-text">3:00</span></div>
           <div id="timer-bar"><div id="timer-fill" style="width:100%"></div></div>
+          <div id="my-move"></div>
         </div>
       </div>
-      <div style="font-family:monospace;font-size:11px;color:rgba(255,255,255,.4)" id="me-name">You</div>
+      <div id="action-btns">
+        <button class="btn-ghost" id="pass-btn" onclick="act('pass')" disabled>⏭️ PASS</button>
+        <button class="btn-primary" id="draw-btn" onclick="act('draw')" disabled>🎴 DRAW</button>
+      </div>
     </div>
     <div id="hand"></div>
     <div id="hand-meta"><span id="hand-count">Hand: 0</span><span>|</span><span id="hand-score">Score: 0</span></div>
@@ -629,7 +621,7 @@ function render(){
   if (S.phase==='roundEnd') renderRoundEnd();
   if (S.phase==='gameOver') renderGameOver();
 
-  renderHeader(); renderScores(); renderOpponents(); renderBoard(); renderHand(); renderControls(); renderLog(); renderTimer();
+  renderHeader(); renderScores(); renderOpponents(); renderBoard(); renderHand(); renderControls(); renderTimer();
 }
 
 function renderLobby(){
@@ -668,18 +660,11 @@ function renderScores(){
   if (S.teams){
     $('score-teams').classList.remove('hidden'); $('score-ffa').classList.add('hidden');
     $('sa').textContent=S.scores.A; $('sb').textContent=S.scores.B;
-    $('ba').style.width=Math.min(S.scores.A/S.target*100,100)+'%';
-    $('bb').style.width=Math.min(S.scores.B/S.target*100,100)+'%';
   } else {
     $('score-teams').classList.add('hidden'); $('score-ffa').classList.remove('hidden');
     const lead=Math.max(...S.seats.map(s=>s.score),0);
     $('score-ffa').innerHTML = S.seats.map(s=>`
-      <div class="frow ${s.score===lead&&lead>0?'lead':''}">
-        <span class="fav">${s.avatar||'🙂'}</span>
-        <span class="fname">${esc(s.name)}${s.seat===mySeat?' (you)':''}</span>
-        <span class="fbar"><div style="width:${Math.min(s.score/S.target*100,100)}%"></div></span>
-        <span class="fpts">${s.score}</span>
-      </div>`).join('');
+      <span class="sc-chip2 ${s.score===lead&&lead>0?'lead':''}" title="${esc(s.name)}">${s.avatar||'🙂'} <b>${s.score}</b></span>`).join('');
   }
 }
 // Corner seating: opponents take the table corners; you sit at the front (bottom).
@@ -703,6 +688,7 @@ function renderOpponents(){
       <div class="opp-avatar team-${t}${turn?' turn':''}">${s.avatar||s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
       <div class="opp-mini">${mini}</div>
       <div class="opp-name">${esc(s.name)}</div>
+      <div class="opp-move">${esc(s.lastMove||'')}</div>
       <div class="opp-tag">${tag}</div>`;
   });
 }
@@ -731,7 +717,7 @@ function initBoardDrag(){
 function renderHand(){
   const me=S.seats[mySeat];
   $('player-avatar').textContent=me?(me.avatar||me.team):'A';
-  $('me-name').textContent = me?esc(me.name):'You';
+  $('my-move').textContent = (me && me.lastMove) ? ('you: '+me.lastMove) : '';
   const myTurn = S.current===mySeat && S.phase==='playing';
   const h=$('hand');
   h.innerHTML = S.hand.map(t=>{
@@ -771,9 +757,6 @@ function renderControls(){
   if (S.phase!=='playing'){ lbl.textContent='—'; }
   else if (myTurn){ lbl.textContent='Your Turn'; lbl.style.color='#00ff88'; }
   else { lbl.textContent=esc(S.seats[S.current].name)+'…'; lbl.style.color='rgba(255,255,255,.55)'; }
-}
-function renderLog(){
-  $('log').innerHTML = (S.logs||[]).slice(-4).map(m=>`<div class="msg a-slide">${esc(m)}</div>`).join('');
 }
 function renderTimer(){
   if (timerInt) clearInterval(timerInt);
