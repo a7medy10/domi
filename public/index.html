@@ -66,9 +66,12 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   background:rgba(20,22,21,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);
   border-radius:14px;padding:7px 10px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .opp.turn{border-color:#00ff88;box-shadow:0 0 18px rgba(0,255,136,.45)}
-.opp-top{top:158px;left:50%;transform:translateX(-50%)}
-.opp-left{left:8px;top:47%;transform:translateY(-50%)}
-.opp-right{right:8px;top:47%;transform:translateY(-50%)}
+/* corner / table positions */
+.pos-tl{top:150px;left:8px}
+.pos-tr{top:150px;right:8px}
+.pos-tc{top:124px;left:50%;transform:translateX(-50%)}
+.pos-br{bottom:208px;right:8px}
+.pos-bl{bottom:208px;left:8px}
 .opp-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;position:relative;background:#1b1b1b}
 .opp-avatar.team-a{border:2px solid #00ff88;color:#00ff88;box-shadow:0 0 10px rgba(0,255,136,.3)}
 .opp-avatar.team-b{border:2px solid #ffb4ab;color:#ffb4ab;box-shadow:0 0 10px rgba(255,180,171,.3)}
@@ -83,10 +86,10 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 /* Board / felt table */
 #board-area{position:fixed;left:0;right:0;top:50%;transform:translateY(-46%);z-index:10;display:flex;align-items:center;justify-content:center}
 #table-felt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(86vw,540px);height:min(58vh,360px);border-radius:50%/42%;
-  background:radial-gradient(ellipse at 50% 42%,#16553a 0%,#114a32 45%,#0c3623 75%,#082619 100%);
-  border:11px solid #3a2516;
-  box-shadow:inset 0 0 60px rgba(0,0,0,.55), inset 0 0 0 2px rgba(0,255,136,.12), 0 24px 60px rgba(0,0,0,.55);z-index:0}
+  width:min(88vw,560px);height:min(56vh,380px);border-radius:40px;
+  background:radial-gradient(ellipse at 50% 45%, rgba(0,255,136,.12) 0%, #0e1715 50%, #0a100e 100%);
+  border:2px solid rgba(0,255,136,.28);
+  box-shadow:inset 0 0 90px rgba(0,255,136,.07), inset 0 0 0 1px rgba(255,255,255,.04), 0 24px 60px rgba(0,0,0,.6), 0 0 44px rgba(0,255,136,.14);z-index:0}
 #board-chain{position:relative;z-index:2;display:flex;gap:4px;align-items:center;max-width:74vw;overflow-x:auto;padding:0 14px}
 #board-ends{position:absolute;top:-46px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center}
 .end{display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -550,7 +553,7 @@ function onEmote(m){ const t=(m.team||'a').toLowerCase(); addChatLine(`<span cla
 function floatEmote(seat, emoji){
   let el;
   if (seat===mySeat) el=$('player-avatar');
-  else if (S){ const k=(seat-mySeat+S.numPlayers)%S.numPlayers; const layout={2:['opp-top'],3:['opp-left','opp-right'],4:['opp-left','opp-top','opp-right']}[S.numPlayers]||['opp-left','opp-top','opp-right']; const id=layout[k-1]; el=id&&$(id); }
+  else { const id=seatSlot[seat]; el=id&&$(id); }
   if(!el) return;
   const r=el.getBoundingClientRect();
   const f=document.createElement('div'); f.className='emote-float'; f.textContent=emoji;
@@ -679,21 +682,21 @@ function renderScores(){
       </div>`).join('');
   }
 }
-function oppSlots(){
-  // active opponents (everyone but me), mapped to fixed on-screen slots by player count
-  const others=[]; for(let k=1;k<S.numPlayers;k++) others.push(S.seats[(mySeat+k)%S.numPlayers]);
-  const layout={2:['opp-top'],3:['opp-left','opp-right'],4:['opp-left','opp-top','opp-right']}[S.numPlayers]||['opp-left','opp-top','opp-right'];
-  return {others, layout};
-}
+// Corner seating: opponents take the table corners; you sit at the front (bottom).
+const OPP_POS = { 2:['pos-tc'], 3:['pos-tl','pos-tr'], 4:['pos-tl','pos-tr','pos-br'] };
+let seatSlot = {}; // seat number -> opponent element id (for emote targeting)
 function renderOpponents(){
-  ['opp-left','opp-top','opp-right'].forEach(id=>{ $(id).classList.add('hidden'); $(id).innerHTML=''; });
-  const {others, layout}=oppSlots();
+  const els=[$('opp-left'),$('opp-top'),$('opp-right')];
+  els.forEach(e=>{ e.className='opp hidden'; e.innerHTML=''; });
+  seatSlot={};
+  const others=[]; for(let k=1;k<S.numPlayers;k++) others.push(S.seats[(mySeat+k)%S.numPlayers]);
+  const pos=OPP_POS[S.numPlayers]||['pos-tl','pos-tr','pos-br'];
   others.forEach((s,i)=>{
-    const id=layout[i]; if(!id) return;
-    const el=$(id); el.classList.remove('hidden');
-    const t=s.team.toLowerCase();
+    const el=els[i]; if(!el) return;
     const turn=S.current===s.seat;
-    el.classList.toggle('turn', turn);
+    el.className='opp '+(pos[i]||'pos-tl')+(turn?' turn':'');
+    seatSlot[s.seat]=el.id;
+    const t=s.team.toLowerCase();
     const tag=s.isBot?'🤖 BOT':(!s.connected&&s.occupied?'OFFLINE':(S.teams?('TEAM '+s.team):('★ '+s.score)));
     const mini = '<i></i>'.repeat(Math.min(s.handCount,7));
     el.innerHTML=`
