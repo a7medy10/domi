@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Team 101 Dominoes — Online</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e5e2e1;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+@keyframes float{0%,100%{transform:translateY(-18px)}50%{transform:translateY(-26px)}}
+@keyframes pulse{0%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,136,.3)}50%{box-shadow:0 0 40px rgba(0,255,136,.6)}}
+@keyframes slideUp{0%{transform:translateY(15px);opacity:0}100%{transform:translateY(0);opacity:1}}
+.a-shake{animation:shake .3s ease-in-out}
+.a-slide{animation:slideUp .3s ease forwards}
+
+.glass{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.btn-primary{background:#00ff88;color:#003919;font-weight:700;border-radius:16px;border:none;padding:12px 24px;cursor:pointer;transition:all .2s;box-shadow:0 0 15px rgba(0,255,136,.4);font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 0 25px rgba(0,255,136,.6)}
+.btn-primary:active:not(:disabled){transform:scale(.95)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid rgba(0,255,136,.4);color:#00ff88;border-radius:16px;padding:12px 24px;cursor:pointer;transition:all .2s;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-ghost:hover:not(:disabled){background:rgba(0,255,136,.1);border-color:#00ff88}
+.btn-ghost:disabled{opacity:.3;cursor:not-allowed}
+input{background:#1c1b1b;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px 14px;color:#e5e2e1;font-size:15px;width:100%;outline:none}
+input:focus{border-color:#00ff88}
+
+/* Tile */
+.tile{width:52px;height:88px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;display:flex;flex-direction:column;flex-shrink:0;cursor:pointer;transition:all .25s ease;position:relative}
+.tile.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.tile.playable{border:2px solid #00ff88;box-shadow:0 0 15px rgba(0,255,136,.25);animation:float 2.5s ease-in-out infinite}
+.tile.playable:hover{transform:translateY(-8px) scale(1.03)}
+.tile.board{width:60px;height:34px;flex-direction:row;cursor:default}
+.tile.board .half{border-right:1px solid rgba(255,255,255,.2)}
+.tile.board .half:last-child{border-right:none}
+.tile.board.dbl{width:38px;height:64px;flex-direction:column;border-color:rgba(0,255,136,.35);box-shadow:0 0 10px rgba(0,255,136,.12)}
+.tile.board.dbl .half{border-right:none}
+.tile.board.dbl .half:first-child{border-bottom:1px solid rgba(255,255,255,.2)}
+.tile .half{flex:1;display:flex;align-items:center;justify-content:center;padding:4px}
+.tile:not(.board) .half:first-child{border-bottom:1px solid rgba(255,255,255,.2)}
+.pip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;height:100%;padding:2px}
+.pip{width:6px;height:6px;background:#e5e2e1;border-radius:50%}
+.playable .pip{background:#00ff88;box-shadow:0 0 4px rgba(0,255,136,.5)}
+
+/* Header */
+header{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(19,19,19,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.1);padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:16px;font-weight:800;color:#00ff88}
+header .code{font-family:monospace;font-size:12px;color:rgba(255,255,255,.55)}
+header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.08);border:none;color:#e5e2e1;cursor:pointer}
+
+/* Score bar */
+#score-bar{position:fixed;top:52px;left:0;right:0;z-index:40;padding:8px 16px}
+#score-bar .glass{padding:10px}
+.team-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.team-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.team-score{font-size:20px;font-weight:800;font-family:monospace}
+.bar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.bar-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.bar-a{background:#00ff88}.bar-b{background:#ffb4ab}
+.meta{text-align:center;font-size:10px;color:rgba(255,255,255,.4);font-family:monospace;margin-top:2px}
+
+/* Opponents */
+.opp{position:fixed;z-index:10;display:flex;flex-direction:column;align-items:center;gap:4px}
+.opp-top{top:135px;left:50%;transform:translateX(-50%)}
+.opp-left{left:10px;top:52%;transform:translateY(-50%)}
+.opp-right{right:10px;top:52%;transform:translateY(-50%)}
+.opp-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;position:relative;background:#222}
+.opp-avatar.team-a{border:2px solid #00ff88;color:#00ff88;box-shadow:0 0 10px rgba(0,255,136,.3)}
+.opp-avatar.team-b{border:2px solid #ffb4ab;color:#ffb4ab;box-shadow:0 0 10px rgba(255,180,171,.3)}
+.opp-avatar.turn{animation:pulse 1.2s ease-in-out infinite}
+.opp-count{position:absolute;top:-4px;right:-6px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#2a2a2a;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#00ff88}
+.opp-name{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opp-tag{font-size:8px;font-family:monospace;color:rgba(255,255,255,.35)}
+.opp-thinking{position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:#00ff88;animation:spin .8s linear infinite}
+
+/* Board */
+#board-area{position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);z-index:10;display:flex;align-items:center;justify-content:center}
+#board-chain{display:flex;gap:4px;align-items:center;max-width:88vw;overflow-x:auto;padding:0 14px}
+#board-ends{position:absolute;top:-46px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center}
+.end{display:flex;flex-direction:column;align-items:center;gap:2px}
+.end .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.end .value{width:28px;height:28px;border-radius:50%;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#00ff88}
+
+/* Log */
+#log{position:fixed;top:210px;left:50%;transform:translateX(-50%);z-index:20;max-width:300px;width:90%;pointer-events:none}
+#log .msg{font-family:monospace;font-size:11px;padding:5px 11px;border-radius:999px;background:rgba(42,42,42,.8);border:1px solid rgba(255,255,255,.1);margin-bottom:4px;text-align:center;backdrop-filter:blur(8px);color:rgba(255,255,255,.7)}
+
+/* Controls */
+#controls{position:fixed;bottom:178px;left:0;right:0;padding:0 16px;display:flex;justify-content:space-between;align-items:flex-end;z-index:20}
+#boneyard .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
+#boneyard .pile{display:flex;align-items:center;gap:6px;margin-top:4px}
+#boneyard .card{width:24px;height:36px;background:#2a2a2a;border:1px solid rgba(255,255,255,.12);border-radius:4px;transform:rotate(-8deg)}
+#boneyard .num{font-family:monospace;font-size:13px;color:rgba(255,255,255,.6)}
+#action-btns{display:flex;gap:8px}
+
+/* Player */
+#player-area{position:fixed;bottom:0;left:0;right:0;z-index:30}
+#player-panel{background:rgba(28,27,27,.96);backdrop-filter:blur(40px);border-top:1px solid rgba(255,255,255,.1);border-radius:34px 34px 0 0;padding:14px 18px 18px;box-shadow:0 -20px 50px rgba(0,0,0,.5)}
+#player-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+#player-info{display:flex;align-items:center;gap:10px}
+#player-avatar{width:40px;height:40px;border-radius:50%;border:2px solid #00ff88;display:flex;align-items:center;justify-content:center;font-weight:800;color:#00ff88;box-shadow:0 0 15px rgba(0,255,136,.3)}
+#turn-label{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+#timer-wrap{display:flex;align-items:center;gap:8px}
+#timer-text{font-family:monospace;font-size:13px;font-weight:700;color:#00ff88}
+#timer-text.warn{color:#ffb4ab;animation:pulse 1s infinite}
+#timer-bar{height:3px;width:90px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:4px}
+#timer-fill{height:100%;background:#00ff88;border-radius:2px;transition:width 1s linear}
+#timer-fill.warn{background:#ffb4ab}
+#hand{display:flex;justify-content:center;gap:6px;overflow-x:auto;padding:6px 0;min-height:100px;align-items:flex-end}
+#hand-meta{display:flex;justify-content:center;gap:14px;margin-top:6px;font-size:11px;color:rgba(255,255,255,.4);font-family:monospace}
+
+/* Overlay (lobby + modals) */
+.overlay{position:fixed;inset:0;z-index:100;background:rgba(10,10,10,.9);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.card-modal{background:rgba(34,34,34,.97);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;max-width:380px;width:100%;max-height:88vh;overflow-y:auto}
+.card-modal h2{font-size:22px;font-weight:800;color:#00ff88;text-align:center;margin-bottom:6px}
+.card-modal .sub{text-align:center;color:rgba(255,255,255,.5);font-size:13px;margin-bottom:18px}
+.card-modal h3{font-size:13px;font-weight:700;color:#00ff88;margin:14px 0 8px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.divider{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.3);font-size:11px;margin:14px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
+.row-join{display:flex;gap:8px}
+.row-join input{text-transform:uppercase;letter-spacing:2px;font-family:monospace}
+.code-display{text-align:center;font-family:monospace;font-size:34px;font-weight:800;color:#00ff88;letter-spacing:6px;margin:6px 0 2px}
+.copy-hint{text-align:center;font-size:11px;color:rgba(255,255,255,.4);margin-bottom:12px}
+.seat{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:8px;border:1px solid rgba(255,255,255,.06)}
+.seat .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+.seat .av.a{border:2px solid #00ff88;color:#00ff88}.seat .av.b{border:2px solid #ffb4ab;color:#ffb4ab}
+.seat .info{flex:1;min-width:0}
+.seat .nm{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat .st{font-size:10px;font-family:monospace;color:rgba(255,255,255,.45)}
+.seat .act{font-size:11px;padding:5px 10px;border-radius:8px;border:1px solid rgba(0,255,136,.4);background:transparent;color:#00ff88;cursor:pointer}
+.you-dot{width:7px;height:7px;border-radius:50%;background:#00ff88;flex-shrink:0}
+.option-row{display:flex;gap:8px;margin-top:4px}
+.option-btn{flex:1;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.6);cursor:pointer}
+.option-btn.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.08)}
+.err-msg{background:rgba(255,180,171,.12);border:1px solid rgba(255,180,171,.4);color:#ffb4ab;font-size:12px;padding:8px 12px;border-radius:10px;margin-top:10px;text-align:center;display:none}
+.err-msg.show{display:block}
+#go .icon{width:64px;height:64px;border-radius:50%;background:rgba(0,255,136,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;animation:glow 2s infinite}
+.scores2{display:flex;justify-content:center;gap:30px;margin:14px 0}
+.scores2 .n{font-size:28px;font-weight:800;font-family:monospace}
+.scores2 .n.a{color:#00ff88}.scores2 .n.b{color:#ffb4ab}
+.scores2 .l{font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:2px}
+
+.hidden{display:none!important}
+@media (max-width:380px){
+  #board-chain{max-width:94vw}
+  .opp-left{left:4px}.opp-right{right:4px}
+  .opp-avatar{width:42px;height:42px;font-size:14px}
+  #controls{padding:0 10px}
+  header h1{font-size:15px}
+  .btn-primary,.btn-ghost{padding:10px 14px;font-size:13px}
+}
+/* Short screens: pull stacked elements up so nothing overlaps the hand panel */
+@media (max-height:680px){
+  .opp-top{top:120px}
+  #log{top:186px}
+  #controls{bottom:164px}
+  #player-panel{padding:10px 16px 14px;border-radius:28px 28px 0 0}
+  #hand{min-height:84px}
+}
+@media (max-height:560px){
+  #score-bar .meta{display:none}
+  .opp-top{top:108px}
+  #log{display:none}
+  #controls{bottom:150px}
+  #hand{min-height:72px;padding:4px 0}
+}
+</style>
+</head>
+<body>
+</style>
+</head>
+<body>
+
+<!-- ===== GAME VIEW (hidden until playing) ===== -->
+<div id="game-view" class="hidden">
+  <header>
+    <div>
+      <h1>Dominos Online</h1>
+      <div class="code">Room <span id="hdr-code">----</span> · Round <span id="hdr-round">1</span></div>
+    </div>
+    <button class="icon-btn" onclick="leaveRoom()" title="Leave">✕</button>
+  </header>
+
+  <div id="score-bar"><div class="glass">
+    <div class="team-row">
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div><span class="team-name" style="color:#00ff88">Team A</span></div>
+      <span class="team-score" id="sa" style="color:#00ff88">0</span>
+    </div>
+    <div class="bar"><div class="bar-fill bar-a" id="ba" style="width:0%"></div></div>
+    <div class="team-row">
+      <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ffb4ab"></div><span class="team-name" style="color:#ffb4ab">Team B</span></div>
+      <span class="team-score" id="sb" style="color:#ffb4ab">0</span>
+    </div>
+    <div class="bar"><div class="bar-fill bar-b" id="bb" style="width:0%"></div></div>
+    <div class="meta">First to <span id="tgt">101</span> wins</div>
+  </div></div>
+
+  <div class="opp" id="opp-top"></div>
+  <div class="opp" id="opp-left"></div>
+  <div class="opp" id="opp-right"></div>
+
+  <div id="log"></div>
+
+  <div id="board-area">
+    <div id="board-ends" class="hidden">
+      <div class="end"><span class="label">Left</span><div class="value" id="end-l">-</div></div>
+      <div style="width:1px;height:22px;background:rgba(255,255,255,.1)"></div>
+      <div class="end"><span class="label">Right</span><div class="value" id="end-r">-</div></div>
+    </div>
+    <div id="board-chain"></div>
+  </div>
+
+  <div id="controls">
+    <div id="boneyard">
+      <div class="label">Boneyard</div>
+      <div class="pile"><div class="card"></div><span class="num" id="bone">0</span></div>
+    </div>
+    <div id="action-btns">
+      <button class="btn-ghost" id="pass-btn" onclick="act('pass')" disabled>⏭️ PASS</button>
+      <button class="btn-primary" id="draw-btn" onclick="act('draw')" disabled>🎴 DRAW</button>
+    </div>
+  </div>
+
+  <div id="player-area"><div id="player-panel">
+    <div id="player-header">
+      <div id="player-info">
+        <div id="player-avatar">A</div>
+        <div>
+          <div id="timer-wrap"><span id="turn-label">Your Turn</span><span id="timer-text">3:00</span></div>
+          <div id="timer-bar"><div id="timer-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+      <div style="font-family:monospace;font-size:11px;color:rgba(255,255,255,.4)" id="me-name">You</div>
+    </div>
+    <div id="hand"></div>
+    <div id="hand-meta"><span id="hand-count">Hand: 0</span><span>|</span><span id="hand-score">Score: 0</span></div>
+  </div></div>
+</div>
+
+<!-- ===== CONNECT / JOIN ===== -->
+<div class="overlay show" id="connect-overlay">
+  <div class="card-modal">
+    <h2>🁫 Dominos Online</h2>
+    <div class="sub">Team 101 · play with up to 4 people</div>
+    <div class="stack">
+      <input id="name-input" placeholder="Your name" maxlength="16">
+      <button class="btn-primary" onclick="createRoom()">➕ Create Room</button>
+    </div>
+    <div class="divider">or join with a code</div>
+    <div class="row-join">
+      <input id="code-input" placeholder="CODE" maxlength="4">
+      <button class="btn-ghost" onclick="joinRoom()">Join</button>
+    </div>
+    <div class="err-msg" id="connect-err"></div>
+  </div>
+</div>
+
+<!-- ===== LOBBY ===== -->
+<div class="overlay" id="lobby-overlay">
+  <div class="card-modal">
+    <h2>Lobby</h2>
+    <div class="sub">Share this code with friends</div>
+    <div class="code-display" id="lobby-code">----</div>
+    <div class="copy-hint" id="copy-hint">tap to copy</div>
+    <h3>Seats</h3>
+    <div id="seat-list"></div>
+    <div id="host-controls" class="hidden">
+      <h3>🎯 Target score</h3>
+      <div class="option-row">
+        <button class="option-btn" data-t="51" onclick="setTarget(51)">51</button>
+        <button class="option-btn active" data-t="101" onclick="setTarget(101)">101</button>
+        <button class="option-btn" data-t="201" onclick="setTarget(201)">201</button>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:16px" onclick="act('start')">▶️ Start Game</button>
+    </div>
+    <div id="wait-msg" class="sub hidden" style="margin-top:16px">Waiting for the host to start…</div>
+    <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="leaveRoom()">Leave</button>
+  </div>
+</div>
+
+<!-- ===== ROUND END ===== -->
+<div class="overlay" id="round-overlay">
+  <div class="card-modal">
+    <h2 id="round-title">Round Complete</h2>
+    <div class="sub" id="round-reason"></div>
+    <div class="scores2">
+      <div><div class="n a" id="round-a">0</div><div class="l">Team A</div></div>
+      <div><div class="n b" id="round-b">0</div><div class="l">Team B</div></div>
+    </div>
+    <div class="sub" id="round-next">Next round starting…</div>
+    <button class="btn-primary hidden" id="round-next-btn" style="width:100%" onclick="act('nextRound')">▶️ Next Round Now</button>
+  </div>
+</div>
+
+<!-- ===== GAME OVER ===== -->
+<div class="overlay" id="go-overlay">
+  <div class="card-modal" id="go">
+    <div class="icon" id="go-icon">🏆</div>
+    <h2 id="go-title">Team Victory!</h2>
+    <div class="sub" id="go-msg"></div>
+    <div class="scores2">
+      <div><div class="n a" id="go-a">0</div><div class="l">Team A</div></div>
+      <div><div class="n b" id="go-b">0</div><div class="l">Team B</div></div>
+    </div>
+    <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" onclick="act('rematch')">🔄 Rematch</button>
+    <button class="btn-ghost" style="width:100%" onclick="leaveRoom()">Leave</button>
+  </div>
+</div>
+
+<!-- ===== SIDE CHOOSER ===== -->
+<div class="overlay" id="side-overlay">
+  <div class="card-modal" style="text-align:center">
+    <div style="font-size:38px;margin-bottom:8px">⚖️</div>
+    <h2 style="font-size:18px">Choose Side</h2>
+    <div class="sub">This tile fits both ends</div>
+    <div class="row-join">
+      <button class="btn-ghost" style="flex:1" onclick="chooseSide('left')">⟵ Left</button>
+      <button class="btn-primary" style="flex:1" onclick="chooseSide('right')">Right ⟶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+const PIP = {0:[],1:[[1,1]],2:[[0,0],[2,2]],3:[[0,0],[1,1],[2,2]],4:[[0,0],[0,2],[2,0],[2,2]],5:[[0,0],[0,2],[1,1],[2,0],[2,2]],6:[[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]]};
+let ws = null, S = null, mySeat = -1, myToken = null, myCode = null, pendingTile = null, timerInt = null;
+
+function $(id){return document.getElementById(id);}
+function show(id){$(id).classList.add('show');}
+function hide(id){$(id).classList.remove('show');}
+
+// ---------- networking ----------
+function connect(then){
+  ws = new WebSocket(WS_URL);
+  ws.onopen = then;
+  ws.onmessage = e => handle(JSON.parse(e.data));
+  ws.onclose = () => { if (S && S.phase) showErr('connect-err','Disconnected. Reload to reconnect.'); };
+}
+function sendMsg(o){ if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
+function createRoom(){
+  const name = ($('name-input').value||'Player').trim();
+  connect(()=> sendMsg({type:'create', name}));
+}
+function joinRoom(){
+  const name = ($('name-input').value||'Player').trim();
+  const code = ($('code-input').value||'').trim().toUpperCase();
+  if (code.length<3) return showErr('connect-err','Enter a room code');
+  connect(()=> sendMsg({type:'join', code, name}));
+}
+function act(type, extra){ sendMsg(Object.assign({type}, extra||{})); }
+function setTarget(t){ sendMsg({type:'setTarget', target:t}); }
+function leaveRoom(){ try{ws.close();}catch{} localStorage.removeItem('domi'); location.reload(); }
+
+function handle(m){
+  if (m.type==='error'){ showErr(connectVisible()?'connect-err':'connect-err', m.message); flashErr(m.message); return; }
+  if (m.type==='joined'){
+    mySeat=m.yourSeat; myToken=m.token; myCode=m.code;
+    localStorage.setItem('domi', JSON.stringify({code:m.code, token:m.token}));
+    return;
+  }
+  if (m.type==='state'){ S=m; render(); }
+}
+function connectVisible(){ return $('connect-overlay').classList.contains('show'); }
+function showErr(id,msg){ const e=$(id); e.textContent=msg; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),4000); }
+function flashErr(msg){ /* lightweight toast via log */ }
+
+// ---------- rendering ----------
+function pips(n){ const p=PIP[n]||[]; let h='<div class="pip-grid">'; for(let r=0;r<3;r++)for(let c=0;c<3;c++)h+=p.some(x=>x[0]===r&&x[1]===c)?'<div class="pip"></div>':'<div></div>'; return h+'</div>'; }
+function boardTile(t){ const dbl=t.double||t.top===t.bottom; return `<div class="tile board${dbl?' dbl':''}"><div class="half">${pips(t.top)}</div><div class="half">${pips(t.bottom)}</div></div>`; }
+
+function render(){
+  if (!S) return;
+  // phase routing
+  hide('connect-overlay');
+  if (S.phase==='lobby'){ $('game-view').classList.add('hidden'); show('lobby-overlay'); renderLobby(); return; }
+  hide('lobby-overlay');
+  $('game-view').classList.remove('hidden');
+  S.phase==='roundEnd' ? show('round-overlay') : hide('round-overlay');
+  S.phase==='gameOver' ? show('go-overlay') : hide('go-overlay');
+  if (S.phase==='roundEnd') renderRoundEnd();
+  if (S.phase==='gameOver') renderGameOver();
+
+  renderHeader(); renderScores(); renderOpponents(); renderBoard(); renderHand(); renderControls(); renderLog(); renderTimer();
+}
+
+function renderLobby(){
+  $('lobby-code').textContent = S.code;
+  $('lobby-code').onclick = ()=>{ navigator.clipboard && navigator.clipboard.writeText(S.code); $('copy-hint').textContent='copied!'; };
+  const isHost = mySeat===S.hostSeat;
+  const list = $('seat-list'); list.innerHTML='';
+  S.seats.forEach(s=>{
+    const t = s.team.toLowerCase();
+    let status = s.occupied ? (s.connected?'Player':'(disconnected)') : (s.isBot?'Bot':'Empty');
+    const me = s.seat===mySeat;
+    let actBtn = '';
+    if (isHost && !s.occupied){
+      actBtn = s.isBot
+        ? `<button class="act" onclick="act('removeBot',{seat:${s.seat}})">Remove bot</button>`
+        : `<button class="act" onclick="act('addBot',{seat:${s.seat}})">Add bot</button>`;
+    }
+    list.innerHTML += `<div class="seat">
+      <div class="av ${t}">${s.team}</div>
+      <div class="info"><div class="nm">${esc(s.name)} ${s.seat===S.hostSeat?'👑':''}</div><div class="st">Team ${s.team} · ${status}</div></div>
+      ${me?'<div class="you-dot" title="you"></div>':''}
+      ${actBtn}
+    </div>`;
+  });
+  $('host-controls').classList.toggle('hidden', !isHost);
+  $('wait-msg').classList.toggle('hidden', isHost);
+  document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('active', +b.dataset.t===S.target));
+}
+
+function renderHeader(){ $('hdr-code').textContent=S.code; $('hdr-round').textContent=S.roundNum; }
+function renderScores(){
+  $('sa').textContent=S.scores.A; $('sb').textContent=S.scores.B; $('tgt').textContent=S.target;
+  $('ba').style.width=Math.min(S.scores.A/S.target*100,100)+'%';
+  $('bb').style.width=Math.min(S.scores.B/S.target*100,100)+'%';
+}
+function seatAt(offset){ return S.seats[(mySeat+offset)%4]; }
+function renderOpponents(){
+  // left = +1, top = +2, right = +3 (clockwise around you)
+  const map = {'opp-left':1,'opp-top':2,'opp-right':3};
+  for (const [id,off] of Object.entries(map)){
+    const s = seatAt(off);
+    const t = s.team.toLowerCase();
+    const turn = S.current===s.seat;
+    const tag = s.isBot?'BOT':(!s.connected&&s.occupied?'OFFLINE':'');
+    $(id).innerHTML = `
+      <div class="opp-avatar team-${t}${turn?' turn':''}">${s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
+      <div class="opp-name">${esc(s.name)}</div>
+      <div class="opp-tag">${tag}</div>`;
+  }
+}
+function renderBoard(){
+  const bc=$('board-chain');
+  bc.innerHTML = S.board.map(boardTile).join('');
+  if (S.ends){ $('board-ends').classList.remove('hidden'); $('end-l').textContent=S.ends.left; $('end-r').textContent=S.ends.right; }
+  else $('board-ends').classList.add('hidden');
+  $('bone').textContent=S.boneyardCount;
+}
+function renderHand(){
+  const me=S.seats[mySeat];
+  $('player-avatar').textContent=me?me.team:'A';
+  $('me-name').textContent = me?esc(me.name):'You';
+  const myTurn = S.current===mySeat && S.phase==='playing';
+  const h=$('hand');
+  h.innerHTML = S.hand.map(t=>{
+    const cls = t.playable ? 'tile playable' : 'tile'+(myTurn?' disabled':'');
+    return `<div class="${cls}" data-id="${t.id}"><div class="half">${pips(t.top)}</div><div class="half">${pips(t.bottom)}</div></div>`;
+  }).join('');
+  $('hand-count').textContent='Hand: '+S.hand.length;
+  $('hand-score').textContent='Score: '+S.hand.reduce((a,t)=>a+t.top+t.bottom,0);
+  h.querySelectorAll('.tile[data-id]').forEach(el=>{
+    el.onclick=()=>{
+      const t=S.hand.find(x=>x.id===el.dataset.id);
+      if(!t || !t.playable){ el.classList.add('a-shake'); setTimeout(()=>el.classList.remove('a-shake'),300); return; }
+      if(t.sides.length===1) act('play',{tileId:t.id, side:t.sides[0]});
+      else { pendingTile=t; show('side-overlay'); }
+    };
+  });
+  sizeHand();
+}
+// Shrink hand tiles so the whole hand fits the panel width (no horizontal scroll).
+function sizeHand(){
+  const h=$('hand'); if(!h) return;
+  const tiles=h.querySelectorAll('.tile'); const n=tiles.length; if(!n) return;
+  const gap=6, avail=h.clientWidth-2;
+  let w=Math.floor((avail-(n-1)*gap)/n);
+  w=Math.max(30, Math.min(52, w));
+  const ht=Math.round(w/52*88);
+  tiles.forEach(t=>{ t.style.width=w+'px'; t.style.height=ht+'px'; });
+  h.style.justifyContent = (w*n+(n-1)*gap < avail) ? 'center' : 'flex-start';
+}
+function chooseSide(side){ hide('side-overlay'); if(pendingTile){ act('play',{tileId:pendingTile.id, side}); pendingTile=null; } }
+function renderControls(){
+  const myTurn = S.current===mySeat && S.phase==='playing';
+  $('draw-btn').disabled = !(myTurn && S.canDraw);
+  $('pass-btn').disabled = !(myTurn && S.canPass);
+  const lbl=$('turn-label');
+  if (S.phase!=='playing'){ lbl.textContent='—'; }
+  else if (myTurn){ lbl.textContent='Your Turn'; lbl.style.color='#00ff88'; }
+  else { lbl.textContent=esc(S.seats[S.current].name)+'…'; lbl.style.color='rgba(255,255,255,.55)'; }
+}
+function renderLog(){
+  $('log').innerHTML = (S.logs||[]).slice(-4).map(m=>`<div class="msg a-slide">${esc(m)}</div>`).join('');
+}
+function renderTimer(){
+  if (timerInt) clearInterval(timerInt);
+  const tick=()=>{
+    if (!S || S.phase!=='playing' || !S.turnEndsAt){ $('timer-text').textContent='--:--'; $('timer-fill').style.width='0%'; return; }
+    const left=Math.max(0,Math.round((S.turnEndsAt-Date.now())/1000));
+    $('timer-text').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+    $('timer-fill').style.width=Math.min(left/180*100,100)+'%';
+    const warn = left<30;
+    $('timer-text').classList.toggle('warn',warn);
+    $('timer-fill').classList.toggle('warn',warn);
+  };
+  tick(); timerInt=setInterval(tick,1000);
+}
+function renderRoundEnd(){
+  const r=S.lastRound; if(!r) return;
+  $('round-title').textContent=`Round ${S.roundNum} — Team ${r.team} +${r.points}`;
+  $('round-reason').textContent=r.reason||'';
+  $('round-a').textContent=r.a; $('round-b').textContent=r.b;
+  $('round-next-btn').classList.toggle('hidden', mySeat!==S.hostSeat);
+}
+function renderGameOver(){
+  const w=S.winnerTeam;
+  const mine = S.seats[mySeat] && S.seats[mySeat].team===w;
+  $('go-icon').textContent = mine?'🏆':'😞';
+  $('go-title').textContent = mine?'Victory!':'Defeat';
+  $('go-title').style.color = w==='A'?'#00ff88':'#ffb4ab';
+  $('go-msg').textContent = `Team ${w} reached ${S.target} points.`;
+  $('go-a').textContent=S.scores.A; $('go-b').textContent=S.scores.B;
+  $('go-rematch').classList.toggle('hidden', mySeat!==S.hostSeat);
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ---------- reconnect on reload ----------
+window.addEventListener('load',()=>{
+  const saved = localStorage.getItem('domi');
+  if (saved){
+    try{
+      const {code,token}=JSON.parse(saved);
+      connect(()=> sendMsg({type:'rejoin', code, token}));
+    }catch{ localStorage.removeItem('domi'); }
+  }
+});
+window.addEventListener('resize', ()=>{ if(S) sizeHand(); });
+window.addEventListener('orientationchange', ()=>{ if(S) setTimeout(sizeHand,200); });
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script>
+</body>
+</html>

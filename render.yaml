@@ -1,0 +1,16 @@
+# Render Blueprint — deploys the dominoes WebSocket server (and the static client it serves).
+# Render → New + → Blueprint → pick this repo. Or create a Web Service manually with the
+# build/start commands below and Root Directory = "server".
+services:
+  - type: web
+    name: domi-dominoes
+    runtime: node
+    plan: free          # free instances sleep after ~15 min idle; first hit after that is a cold start
+    rootDir: server     # package.json lives in server/; the app serves ../public for the client
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
