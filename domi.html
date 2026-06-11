@@ -215,6 +215,10 @@ header .icon-btn:hover{background:rgba(0,255,136,.15);color:#00ff88}
 .lb-w{font-family:monospace;font-size:11px;color:rgba(255,255,255,.45);width:42px;text-align:right}
 .tier{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:999px;border:1px solid currentColor}
 .tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
+.lb-av{font-size:16px;width:20px;text-align:center}
+#lb-avatar-pick{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+#lb-avatar-pick .av{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#lb-avatar-pick .av.sel{border-color:#00ff88;background:rgba(0,255,136,.12)}
 
 /* Mobile / small-screen tuning */
 @media (max-width:380px){
@@ -504,6 +508,7 @@ header .icon-btn:hover{background:rgba(0,255,136,.15);color:#00ff88}
           style="flex:1;background:#1c1b1b;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 10px;color:#e5e2e1;font-size:14px;outline:none">
         <button class="btn-ghost" style="padding:8px 12px" onclick="saveLbName()">Save</button>
       </div>
+      <div id="lb-avatar-pick"></div>
       <div class="preview" id="lb-you" style="margin-top:8px">—</div>
     </div>
     <div class="section">
@@ -1173,11 +1178,20 @@ function closeRules() {
 // Server that stores the shared leaderboard. Change to your hosted URL, e.g.
 // 'https://domi-dominoes.onrender.com', so single-player results join the online board.
 const LEADERBOARD_API = 'https://domi-dominoes.onrender.com';
+const LB_AVATARS = ['🙂','😎','🐱','🐶','🦊','🐼','🐯','🦁','🐸','🐵','🦄','🐲','🤠','👽','🐙','🐺'];
 function lbName() { return (localStorage.getItem('domiName') || 'You').slice(0, 24); }
+function lbAvatar() { return localStorage.getItem('domiAvatar') || '🙂'; }
+function renderLbAvatarPick() {
+  const c = document.getElementById('lb-avatar-pick'); if (!c) return;
+  const cur = lbAvatar();
+  c.innerHTML = LB_AVATARS.map(a => `<div class="av ${a === cur ? 'sel' : ''}" data-a="${a}">${a}</div>`).join('');
+  c.querySelectorAll('.av').forEach(el => el.onclick = () => { localStorage.setItem('domiAvatar', el.dataset.a); renderLbAvatarPick(); });
+}
 function escHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function showLeaderboard() {
   document.getElementById('leaderboard-modal').classList.add('show');
   document.getElementById('lb-name-input').value = lbName();
+  renderLbAvatarPick();
   loadLeaderboard();
 }
 function closeLeaderboard() {
@@ -1202,6 +1216,7 @@ function loadLeaderboard() {
     rowsEl.innerHTML = lb.rows.map(r => `
       <div class="lb-row ${r.name.toLowerCase() === me ? 'me' : ''}">
         <div class="lb-rank">${r.rank}</div>
+        <div class="lb-av">${r.avatar || '🙂'}</div>
         <div class="lb-name">${escHtml(r.name)} <span class="tier ${r.tier}">${r.tier}</span></div>
         <div class="lb-pts">${r.points}</div>
         <div class="lb-w">${r.wins}W</div>
@@ -1213,7 +1228,7 @@ function loadLeaderboard() {
 }
 // Submit a finished single-player game (you are Team A).
 function submitResult(winnerTeam) {
-  const body = JSON.stringify({ name: lbName(), won: winnerTeam === 'A', points: GS.scores.A });
+  const body = JSON.stringify({ name: lbName(), won: winnerTeam === 'A', points: GS.scores.A, avatar: lbAvatar() });
   fetch(`${LEADERBOARD_API}/api/result`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
 }
 

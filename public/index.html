@@ -155,6 +155,16 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
 .lb-empty{text-align:center;color:rgba(255,255,255,.4);font-size:13px;padding:16px}
 
+/* Avatar picker */
+#avatar-pick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+#avatar-pick .av{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#avatar-pick .av.sel{border-color:#00ff88;background:rgba(0,255,136,.12);box-shadow:0 0 10px rgba(0,255,136,.3)}
+.hist-chip{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;font-family:monospace}
+.hist-chip.w{background:rgba(0,255,136,.18);color:#00ff88}
+.hist-chip.l{background:rgba(255,180,171,.18);color:#ffb4ab}
+.lb-row{cursor:pointer}
+.lb-av{font-size:18px;width:22px;text-align:center}
+
 /* Chat */
 #chat-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#ffb4ab;color:#1a0c0a;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
 #chat-panel{position:fixed;top:0;right:0;bottom:0;width:300px;max-width:85vw;z-index:90;background:rgba(20,20,20,.97);backdrop-filter:blur(20px);border-left:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;box-shadow:-10px 0 40px rgba(0,0,0,.5);animation:slideUp .2s ease}
@@ -288,6 +298,7 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     <div class="sub">Team 101 · play with up to 4 people</div>
     <div class="stack">
       <input id="name-input" placeholder="Your name" maxlength="16">
+      <div id="avatar-pick"></div>
       <button class="btn-primary" onclick="createRoom()">➕ Create Room</button>
     </div>
     <div class="divider">or join with a code</div>
@@ -363,6 +374,23 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   </div>
 </div>
 
+<!-- ===== PROFILE CARD ===== -->
+<div class="overlay" id="prof-overlay">
+  <div class="card-modal" style="text-align:center">
+    <div id="prof-av" style="font-size:54px;line-height:1">🙂</div>
+    <h2 id="prof-name" style="margin-top:4px">—</h2>
+    <div id="prof-tier" style="margin-bottom:10px"></div>
+    <div class="scores2">
+      <div><div class="n a" id="prof-pts">0</div><div class="l">Points</div></div>
+      <div><div class="n" style="color:#e5e2e1" id="prof-wl">0/0</div><div class="l">W / L</div></div>
+      <div><div class="n" style="color:#e5e2e1" id="prof-rank">–</div><div class="l">Rank</div></div>
+    </div>
+    <div class="sub" style="margin-bottom:6px">Recent games</div>
+    <div id="prof-hist" style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-bottom:14px"></div>
+    <button class="btn-ghost" style="width:100%" onclick="hide('prof-overlay')">Close</button>
+  </div>
+</div>
+
 <!-- ===== CHAT ===== -->
 <div id="chat-panel" class="hidden">
   <div id="chat-head">
@@ -401,6 +429,8 @@ const PIP = {0:[],1:[[1,1]],2:[[0,0],[2,2]],3:[[0,0],[1,1],[2,2]],4:[[0,0],[0,2]
 let ws = null, S = null, mySeat = -1, myToken = null, myCode = null, pendingTile = null, timerInt = null;
 let sound = true, audioCtx = null, prevBoardLen = 0, prevPhase = null, prevCurrent = -1;
 let chatOpen = false, unread = 0;
+const AVATARS = ['🙂','😎','🐱','🐶','🦊','🐼','🐯','🦁','🐸','🐵','🦄','🐲','🤠','👽','🐙','🐺'];
+let myAvatar = localStorage.getItem('domiAvatar') || '🙂';
 
 function $(id){return document.getElementById(id);}
 function show(id){$(id).classList.add('show');}
@@ -417,14 +447,19 @@ function sendMsg(o){ if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
 function createRoom(){
   const name = ($('name-input').value||'Player').trim();
   localStorage.setItem('domiName', name);
-  connect(()=> sendMsg({type:'create', name}));
+  connect(()=> sendMsg({type:'create', name, avatar:myAvatar}));
 }
 function joinRoom(){
   const name = ($('name-input').value||'Player').trim();
   localStorage.setItem('domiName', name);
   const code = ($('code-input').value||'').trim().toUpperCase();
   if (code.length<3) return showErr('connect-err','Enter a room code');
-  connect(()=> sendMsg({type:'join', code, name}));
+  connect(()=> sendMsg({type:'join', code, name, avatar:myAvatar}));
+}
+function renderAvatarPick(){
+  const c=$('avatar-pick'); if(!c) return;
+  c.innerHTML = AVATARS.map(a=>`<div class="av ${a===myAvatar?'sel':''}" data-a="${a}">${a}</div>`).join('');
+  c.querySelectorAll('.av').forEach(el=>el.onclick=()=>{ myAvatar=el.dataset.a; localStorage.setItem('domiAvatar',myAvatar); renderAvatarPick(); });
 }
 function act(type, extra){ sendMsg(Object.assign({type}, extra||{})); }
 function setTarget(t){ sendMsg({type:'setTarget', target:t}); }
@@ -505,12 +540,30 @@ function renderLeaderboard(rows, you){
   const meName = (lbName()||'').toLowerCase();
   if (!rows || !rows.length){ $('lb-rows').innerHTML='<div class="lb-empty">No games played yet — be the first!</div>'; return; }
   $('lb-rows').innerHTML = rows.map(r=>`
-    <div class="lb-row ${r.name.toLowerCase()===meName?'me':''}">
+    <div class="lb-row ${r.name.toLowerCase()===meName?'me':''}" onclick="openProfile('${esc(r.name).replace(/'/g,"\\'")}')">
       <div class="lb-rank">${r.rank}</div>
+      <div class="lb-av">${r.avatar||'🙂'}</div>
       <div class="lb-name">${esc(r.name)} <span class="tier ${r.tier}">${r.tier}</span></div>
       <div class="lb-pts">${r.points}</div>
       <div class="lb-w">${r.wins}W</div>
     </div>`).join('');
+}
+// ---------- profile card ----------
+function apiBase(){ return WS_URL.replace(/^ws/,'http'); }
+function openProfile(name){
+  show('prof-overlay');
+  $('prof-name').textContent = name; $('prof-tier').textContent=''; $('prof-hist').innerHTML='';
+  fetch(apiBase()+'/api/profile?name='+encodeURIComponent(name)).then(r=>r.json()).then(p=>{
+    $('prof-av').textContent = p.avatar||'🙂';
+    $('prof-name').textContent = p.name;
+    $('prof-tier').innerHTML = `<span class="tier ${p.tier}">${p.tier}</span>`;
+    $('prof-pts').textContent = p.points;
+    $('prof-wl').textContent = `${p.wins}/${p.losses}`;
+    $('prof-rank').textContent = p.rank?('#'+p.rank):'–';
+    $('prof-hist').innerHTML = (p.history&&p.history.length)
+      ? p.history.slice().reverse().map(h=>`<div class="hist-chip ${h.won?'w':'l'}">${h.won?'W':'L'}</div>`).join('')
+      : '<span class="sub">no games yet</span>';
+  }).catch(()=>{ $('prof-tier').textContent='unavailable'; });
 }
 function connectVisible(){ return $('connect-overlay').classList.contains('show'); }
 function showErr(id,msg){ const e=$(id); e.textContent=msg; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),4000); }
@@ -551,7 +604,7 @@ function renderLobby(){
         : `<button class="act" onclick="act('addBot',{seat:${s.seat}})">Add bot</button>`;
     }
     list.innerHTML += `<div class="seat">
-      <div class="av ${t}">${s.team}</div>
+      <div class="av ${t}">${s.avatar||s.team}</div>
       <div class="info"><div class="nm">${esc(s.name)} ${s.seat===S.hostSeat?'👑':''}</div><div class="st">Team ${s.team} · ${status}</div></div>
       ${me?'<div class="you-dot" title="you"></div>':''}
       ${actBtn}
@@ -578,7 +631,7 @@ function renderOpponents(){
     const turn = S.current===s.seat;
     const tag = s.isBot?'BOT':(!s.connected&&s.occupied?'OFFLINE':'');
     $(id).innerHTML = `
-      <div class="opp-avatar team-${t}${turn?' turn':''}">${s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
+      <div class="opp-avatar team-${t}${turn?' turn':''}">${s.avatar||s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
       <div class="opp-name">${esc(s.name)}</div>
       <div class="opp-tag">${tag}</div>`;
   }
@@ -607,7 +660,7 @@ function initBoardDrag(){
 }
 function renderHand(){
   const me=S.seats[mySeat];
-  $('player-avatar').textContent=me?me.team:'A';
+  $('player-avatar').textContent=me?(me.avatar||me.team):'A';
   $('me-name').textContent = me?esc(me.name):'You';
   const myTurn = S.current===mySeat && S.phase==='playing';
   const h=$('hand');
@@ -686,6 +739,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 // ---------- reconnect on reload ----------
 window.addEventListener('load',()=>{
   initBoardDrag();
+  renderAvatarPick();
   document.addEventListener('pointerdown', ()=>{ if(!audioCtx) initAudio(); }, {once:true});
   const savedName = localStorage.getItem('domiName');
   if (savedName && $('name-input')) $('name-input').value = savedName;

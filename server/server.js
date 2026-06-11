@@ -44,7 +44,7 @@ async function handleApi(req, res, urlObj) {
         try {
           const d = JSON.parse(body || '{}');
           if (!d.name) return json(res, 400, { error: 'name required' });
-          await DB.recordResult({ name: d.name, won: !!d.won, points: d.points, roundsWon: d.roundsWon });
+          await DB.recordResult({ name: d.name, won: !!d.won, points: d.points, roundsWon: d.roundsWon, avatar: d.avatar });
           json(res, 200, { ok: true, profile: await DB.profile(d.name) });
         } catch (e) { json(res, 400, { error: 'bad request' }); }
       });
@@ -95,7 +95,7 @@ function newRoom(code) {
     botTimer: null,
     roundTimer: null,
     seats: [0, 1, 2, 3].map(i => ({
-      seat: i, name: `Seat ${i + 1}`, occupied: false, isBot: false,
+      seat: i, name: `Seat ${i + 1}`, avatar: '🙂', occupied: false, isBot: false,
       connected: false, token: null, ws: null
     })),
     game: null
@@ -111,7 +111,8 @@ function roomLog(room, msg) {
 function buildState(room, viewerSeat) {
   const g = room.game;
   const seats = room.seats.map(s => ({
-    seat: s.seat, name: s.name, occupied: s.occupied, isBot: s.isBot,
+    seat: s.seat, name: s.name, avatar: s.isBot ? '🤖' : (s.avatar || '🙂'),
+    occupied: s.occupied, isBot: s.isBot,
     connected: s.connected, team: E.teamOf(s.seat),
     handCount: g ? g.hands[s.seat].length : 0
   }));
@@ -293,7 +294,8 @@ function recordGameResults(room) {
       name: s.name,
       won: team === room.winnerTeam,
       points: g.scores[team],
-      roundsWon: 0
+      roundsWon: 0,
+      avatar: s.avatar
     }).catch(() => {});
   }
 }
@@ -344,7 +346,7 @@ wss.on('connection', (ws) => {
         const code = genCode();
         const r = newRoom(code);
         rooms.set(code, r);
-        seatPlayer(ws, r, 0, m.name || 'Player 1');
+        seatPlayer(ws, r, 0, m.name || 'Player 1', m.avatar);
         r.hostSeat = 0;
         send(ws, { type: 'joined', code, token: ws.ctx.token, yourSeat: 0 });
         broadcast(r);
@@ -356,7 +358,7 @@ wss.on('connection', (ws) => {
         if (r.phase !== 'lobby') return err(ws, 'Game already started — ask the host for a rematch or rejoin');
         const seat = firstFreeSeat(r);
         if (seat < 0) return err(ws, 'Room is full');
-        seatPlayer(ws, r, seat, m.name || `Player ${seat + 1}`);
+        seatPlayer(ws, r, seat, m.name || `Player ${seat + 1}`, m.avatar);
         send(ws, { type: 'joined', code: r.code, token: ws.ctx.token, yourSeat: seat });
         broadcast(r);
         break;
@@ -473,10 +475,11 @@ wss.on('connection', (ws) => {
   });
 });
 
-function seatPlayer(ws, room, seat, name) {
+function seatPlayer(ws, room, seat, name, avatar) {
   const s = room.seats[seat];
   s.occupied = true; s.isBot = false; s.connected = true;
   s.name = String(name).slice(0, 16);
+  s.avatar = avatar ? String(avatar).slice(0, 8) : (s.avatar || '🙂');
   s.token = genToken();
   s.ws = ws;
   ws.ctx = { code: room.code, seat, token: s.token };
