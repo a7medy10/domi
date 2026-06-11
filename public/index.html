@@ -155,6 +155,30 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
 .lb-empty{text-align:center;color:rgba(255,255,255,.4);font-size:13px;padding:16px}
 
+/* Chat */
+#chat-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#ffb4ab;color:#1a0c0a;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+#chat-panel{position:fixed;top:0;right:0;bottom:0;width:300px;max-width:85vw;z-index:90;background:rgba(20,20,20,.97);backdrop-filter:blur(20px);border-left:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;box-shadow:-10px 0 40px rgba(0,0,0,.5);animation:slideUp .2s ease}
+#chat-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);font-weight:700;color:#00ff88}
+#chat-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.cmsg{font-size:13px;line-height:1.35}
+.cmsg .who{font-weight:700;font-size:11px}
+.cmsg.a .who{color:#00ff88}.cmsg.b .who{color:#ffb4ab}
+.cmsg .txt{color:rgba(255,255,255,.85);word-break:break-word}
+.cmsg.em{font-size:26px}
+.cmsg.sys{color:rgba(255,255,255,.4);font-style:italic;font-size:12px}
+#emote-row{display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px;border-top:1px solid rgba(255,255,255,.08)}
+#emote-row button{flex:1;min-width:36px;font-size:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 0;cursor:pointer}
+#emote-row button:hover{background:rgba(0,255,136,.12)}
+#chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.08)}
+#chat-input-row input{flex:1}
+/* Floating emote over a seat */
+.emote-float{position:fixed;z-index:95;font-size:40px;pointer-events:none;animation:emoteUp 1.4s ease forwards}
+@keyframes emoteUp{0%{transform:translate(-50%,0) scale(.4);opacity:0}20%{transform:translate(-50%,-10px) scale(1.2);opacity:1}100%{transform:translate(-50%,-70px) scale(1);opacity:0}}
+/* Draggable board */
+#board-chain{cursor:grab}
+#board-chain.grabbing{cursor:grabbing}
+#board-chain.grabbing .tile{pointer-events:none}
+
 .hidden{display:none!important}
 @media (max-width:380px){
   #board-chain{max-width:94vw}
@@ -194,6 +218,8 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
       <div class="code">Room <span id="hdr-code">----</span> · Round <span id="hdr-round">1</span></div>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="chat-btn" onclick="toggleChat()" title="Chat" style="position:relative">💬<span id="chat-badge" class="hidden">0</span></button>
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound">🔊</button>
       <button class="icon-btn" onclick="openLeaderboard()" title="Leaderboard">🏆</button>
       <button class="icon-btn" onclick="leaveRoom()" title="Leave">✕</button>
     </div>
@@ -337,6 +363,25 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   </div>
 </div>
 
+<!-- ===== CHAT ===== -->
+<div id="chat-panel" class="hidden">
+  <div id="chat-head">
+    <span>💬 Room Chat</span>
+    <button class="icon-btn" onclick="toggleChat()" style="width:28px;height:28px">✕</button>
+  </div>
+  <div id="chat-msgs"></div>
+  <div id="emote-row">
+    <button onclick="sendEmote('👍')">👍</button><button onclick="sendEmote('😂')">😂</button>
+    <button onclick="sendEmote('🔥')">🔥</button><button onclick="sendEmote('😮')">😮</button>
+    <button onclick="sendEmote('😢')">😢</button><button onclick="sendEmote('🎉')">🎉</button>
+    <button onclick="sendEmote('🤔')">🤔</button><button onclick="sendEmote('👏')">👏</button>
+  </div>
+  <div id="chat-input-row">
+    <input id="chat-input" placeholder="Message…" maxlength="160" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="btn-primary" style="padding:8px 14px" onclick="sendChat()">Send</button>
+  </div>
+</div>
+
 <!-- ===== SIDE CHOOSER ===== -->
 <div class="overlay" id="side-overlay">
   <div class="card-modal" style="text-align:center">
@@ -354,6 +399,8 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
 const PIP = {0:[],1:[[1,1]],2:[[0,0],[2,2]],3:[[0,0],[1,1],[2,2]],4:[[0,0],[0,2],[2,0],[2,2]],5:[[0,0],[0,2],[1,1],[2,0],[2,2]],6:[[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]]};
 let ws = null, S = null, mySeat = -1, myToken = null, myCode = null, pendingTile = null, timerInt = null;
+let sound = true, audioCtx = null, prevBoardLen = 0, prevPhase = null, prevCurrent = -1;
+let chatOpen = false, unread = 0;
 
 function $(id){return document.getElementById(id);}
 function show(id){$(id).classList.add('show');}
@@ -390,8 +437,49 @@ function handle(m){
     localStorage.setItem('domi', JSON.stringify({code:m.code, token:m.token}));
     return;
   }
-  if (m.type==='state'){ S=m; render(); }
+  if (m.type==='state'){ S=m; soundTriggers(m); render(); }
   if (m.type==='leaderboard'){ renderLeaderboard(m.rows, m.you); }
+  if (m.type==='chat'){ onChat(m); }
+  if (m.type==='emote'){ onEmote(m); }
+}
+// ---------- sound ----------
+function initAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} } }
+function toggleSound(){ sound=!sound; $('sound-btn').textContent=sound?'🔊':'🔇'; if(sound) initAudio(); }
+function beep(type){
+  if(!sound||!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination);
+  const n=audioCtx.currentTime;
+  const set=(f1,f2,v,d,wave)=>{ if(wave)o.type=wave; o.frequency.setValueAtTime(f1,n); if(f2)o.frequency.exponentialRampToValueAtTime(f2,n+d); g.gain.setValueAtTime(v,n); g.gain.exponentialRampToValueAtTime(.01,n+d); o.start(); o.stop(n+d); };
+  if(type==='play') set(800,1200,.13,.2);
+  else if(type==='turn') set(660,990,.12,.18);
+  else if(type==='win'){ o.frequency.setValueAtTime(523,n);o.frequency.setValueAtTime(784,n+.12);o.frequency.setValueAtTime(1047,n+.24);g.gain.setValueAtTime(.18,n);g.gain.exponentialRampToValueAtTime(.01,n+.5);o.start();o.stop(n+.5); }
+  else if(type==='lose') set(300,180,.12,.3,'sawtooth');
+  else if(type==='chat') set(520,720,.07,.12);
+}
+function soundTriggers(m){
+  const bl = m.board ? m.board.length : 0;
+  if (m.phase==='playing' && bl>prevBoardLen) beep('play');
+  if (m.phase==='playing' && m.current===m.yourSeat && prevCurrent!==m.yourSeat) beep('turn');
+  if (m.phase==='gameOver' && prevPhase!=='gameOver'){ const mine=m.seats[m.yourSeat]&&m.seats[m.yourSeat].team===m.winnerTeam; beep(mine?'win':'lose'); }
+  prevBoardLen=bl; prevPhase=m.phase; prevCurrent=m.current;
+}
+// ---------- chat + emotes ----------
+function toggleChat(){ chatOpen=!chatOpen; $('chat-panel').classList.toggle('hidden',!chatOpen); if(chatOpen){ unread=0; $('chat-badge').classList.add('hidden'); $('chat-input').focus(); $('chat-msgs').scrollTop=$('chat-msgs').scrollHeight; } }
+function sendChat(){ const i=$('chat-input'); const t=i.value.trim(); if(!t) return; sendMsg({type:'chat',text:t}); i.value=''; }
+function sendEmote(e){ initAudio(); sendMsg({type:'emote',emote:e}); }
+function addChatLine(html, cls){ const c=$('chat-msgs'); const d=document.createElement('div'); d.className='cmsg '+(cls||''); d.innerHTML=html; c.appendChild(d); while(c.children.length>80)c.removeChild(c.firstChild); c.scrollTop=c.scrollHeight; if(!chatOpen){ unread++; const b=$('chat-badge'); b.textContent=unread>9?'9+':unread; b.classList.remove('hidden'); } }
+function onChat(m){ const t=(m.team||'a').toLowerCase(); addChatLine(`<span class="who">${esc(m.name)}:</span> <span class="txt">${esc(m.text)}</span>`, t); }
+function onEmote(m){ const t=(m.team||'a').toLowerCase(); addChatLine(`<span class="who">${esc(m.name)}</span> <span class="cmsg em">${m.emote}</span>`, t); beep('chat'); floatEmote(m.seat, m.emote); }
+// Float an emoji over the sender's on-screen seat.
+function floatEmote(seat, emoji){
+  let el;
+  if (seat===mySeat) el=$('player-avatar');
+  else { const off=(seat-mySeat+4)%4; const id={1:'opp-left',2:'opp-top',3:'opp-right'}[off]; el=id&&$(id); }
+  if(!el) return;
+  const r=el.getBoundingClientRect();
+  const f=document.createElement('div'); f.className='emote-float'; f.textContent=emoji;
+  f.style.left=(r.left+r.width/2)+'px'; f.style.top=(r.top)+'px';
+  document.body.appendChild(f); setTimeout(()=>f.remove(),1400);
 }
 // ---------- leaderboard ----------
 function lbName(){
@@ -501,6 +589,21 @@ function renderBoard(){
   if (S.ends){ $('board-ends').classList.remove('hidden'); $('end-l').textContent=S.ends.left; $('end-r').textContent=S.ends.right; }
   else $('board-ends').classList.add('hidden');
   $('bone').textContent=S.boneyardCount;
+  // Center when it fits; auto-scroll to newest tile when it overflows (unless mid-drag).
+  requestAnimationFrame(()=>{
+    const overflow = bc.scrollWidth > bc.clientWidth + 4;
+    bc.style.justifyContent = overflow ? 'flex-start' : 'center';
+    if (overflow && !bc._dragging) bc.scrollLeft = bc.scrollWidth;
+  });
+}
+function initBoardDrag(){
+  const bc=$('board-chain'); if(!bc) return;
+  let sx=0, ss=0;
+  bc.addEventListener('pointerdown', e=>{ bc._dragging=true; sx=e.clientX; ss=bc.scrollLeft; bc.classList.add('grabbing'); try{bc.setPointerCapture(e.pointerId);}catch{} });
+  bc.addEventListener('pointermove', e=>{ if(bc._dragging) bc.scrollLeft = ss-(e.clientX-sx); });
+  const end=()=>{ bc._dragging=false; bc.classList.remove('grabbing'); };
+  bc.addEventListener('pointerup', end); bc.addEventListener('pointercancel', end);
+  bc.addEventListener('wheel', e=>{ if(bc.scrollWidth>bc.clientWidth){ bc.scrollLeft+=(e.deltaY||e.deltaX); e.preventDefault(); } }, {passive:false});
 }
 function renderHand(){
   const me=S.seats[mySeat];
@@ -582,6 +685,8 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 // ---------- reconnect on reload ----------
 window.addEventListener('load',()=>{
+  initBoardDrag();
+  document.addEventListener('pointerdown', ()=>{ if(!audioCtx) initAudio(); }, {once:true});
   const savedName = localStorage.getItem('domiName');
   if (savedName && $('name-input')) $('name-input').value = savedName;
   const saved = localStorage.getItem('domi');

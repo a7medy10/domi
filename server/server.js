@@ -27,6 +27,9 @@ function json(res, code, obj) { cors(res); res.writeHead(code, { 'Content-Type':
 async function handleApi(req, res, urlObj) {
   if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); return res.end(); }
   try {
+    if (urlObj.pathname === '/api/healthz' || urlObj.pathname === '/healthz') {
+      return json(res, 200, { ok: true, ts: Date.now() });
+    }
     if (urlObj.pathname === '/api/leaderboard' && req.method === 'GET') {
       const limit = Math.min(50, parseInt(urlObj.searchParams.get('limit')) || 20);
       return json(res, 200, { rows: await DB.leaderboard(limit) });
@@ -53,7 +56,7 @@ async function handleApi(req, res, urlObj) {
 
 const httpServer = http.createServer((req, res) => {
   const urlObj = new URL(req.url, 'http://localhost');
-  if (urlObj.pathname.startsWith('/api/')) return handleApi(req, res, urlObj);
+  if (urlObj.pathname.startsWith('/api/') || urlObj.pathname === '/healthz') return handleApi(req, res, urlObj);
   let urlPath = decodeURIComponent(urlObj.pathname);
   if (urlPath === '/') urlPath = '/index.html';
   const filePath = path.join(PUBLIC_DIR, path.normalize(urlPath).replace(/^(\.\.[/\\])+/, ''));
@@ -147,6 +150,12 @@ function buildState(room, viewerSeat) {
   };
 }
 
+function broadcastRaw(room, obj) {
+  const str = JSON.stringify(obj);
+  for (const s of room.seats) {
+    if (s.ws && s.ws.readyState === 1) { try { s.ws.send(str); } catch {} }
+  }
+}
 function broadcast(room) {
   for (const s of room.seats) {
     if (s.ws && s.ws.readyState === 1) {
@@ -396,6 +405,21 @@ wss.on('connection', (ws) => {
           .catch(() => {});
         break;
       }
+      case 'chat': {
+        if (!room || ws.ctx.seat < 0) return;
+        const s = room.seats[ws.ctx.seat];
+        const text = String(m.text || '').slice(0, 160).trim();
+        if (!text) return;
+        broadcastRaw(room, { type: 'chat', seat: ws.ctx.seat, name: s.name, team: E.teamOf(ws.ctx.seat), text, ts: Date.now() });
+        break;
+      }
+      case 'emote': {
+        if (!room || ws.ctx.seat < 0) return;
+        const ALLOWED = ['👍', '😂', '🔥', '😮', '😢', '🎉', '🤔', '👏'];
+        if (!ALLOWED.includes(m.emote)) return;
+        broadcastRaw(room, { type: 'emote', seat: ws.ctx.seat, name: room.seats[ws.ctx.seat].name, emote: m.emote, ts: Date.now() });
+        break;
+      }
       case 'start': {
         if (!room || room.phase !== 'lobby') return;
         if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can start');
@@ -461,3 +485,10 @@ function seatPlayer(ws, room, seat, name) {
 httpServer.listen(PORT, () => {
   console.log(`Dominoes server on http://localhost:${PORT}  (WebSocket on same port)`);
 });
+
+// Keep-alive: ping our own public URL so the free instance stays awake while running.
+// (For a fully reliable wake-from-sleep, also add an external pinger like cron-job.org.)
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL;
+if (SELF_URL && typeof fetch === 'function') {
+  setInterval(() => { fetch(SELF_URL.replace(/\/$/, '') + '/healthz').catch(() => {}); }, 10 * 60 * 1000);
+}

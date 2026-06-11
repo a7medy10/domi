@@ -1172,7 +1172,7 @@ function closeRules() {
 // ==================== LEADERBOARD ====================
 // Server that stores the shared leaderboard. Change to your hosted URL, e.g.
 // 'https://domi-dominoes.onrender.com', so single-player results join the online board.
-const LEADERBOARD_API = 'http://localhost:3000';
+const LEADERBOARD_API = 'https://domi-dominoes.onrender.com';
 function lbName() { return (localStorage.getItem('domiName') || 'You').slice(0, 24); }
 function escHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function showLeaderboard() {
