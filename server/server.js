@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const E = require('./engine');
+const DB = require('./store');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -12,10 +13,48 @@ const TURN_MS = 180000;      // 3 minutes per turn
 const BOT_DELAY = [900, 1700];
 const ROUND_GAP_MS = 6000;   // auto-advance to next round after this
 
-// ---------- static file server (also lets one host serve the client) ----------
+DB.initStore();
+
+// ---------- static file server + leaderboard REST API ----------
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon', '.png': 'image/png', '.svg': 'image/svg+xml' };
+function cors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+function json(res, code, obj) { cors(res); res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); }
+
+async function handleApi(req, res, urlObj) {
+  if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); return res.end(); }
+  try {
+    if (urlObj.pathname === '/api/leaderboard' && req.method === 'GET') {
+      const limit = Math.min(50, parseInt(urlObj.searchParams.get('limit')) || 20);
+      return json(res, 200, { rows: await DB.leaderboard(limit) });
+    }
+    if (urlObj.pathname === '/api/profile' && req.method === 'GET') {
+      return json(res, 200, await DB.profile(urlObj.searchParams.get('name') || ''));
+    }
+    if (urlObj.pathname === '/api/result' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
+      req.on('end', async () => {
+        try {
+          const d = JSON.parse(body || '{}');
+          if (!d.name) return json(res, 400, { error: 'name required' });
+          await DB.recordResult({ name: d.name, won: !!d.won, points: d.points, roundsWon: d.roundsWon });
+          json(res, 200, { ok: true, profile: await DB.profile(d.name) });
+        } catch (e) { json(res, 400, { error: 'bad request' }); }
+      });
+      return;
+    }
+    json(res, 404, { error: 'not found' });
+  } catch (e) { json(res, 500, { error: 'server error' }); }
+}
+
 const httpServer = http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(req.url.split('?')[0]);
+  const urlObj = new URL(req.url, 'http://localhost');
+  if (urlObj.pathname.startsWith('/api/')) return handleApi(req, res, urlObj);
+  let urlPath = decodeURIComponent(urlObj.pathname);
   if (urlPath === '/') urlPath = '/index.html';
   const filePath = path.join(PUBLIC_DIR, path.normalize(urlPath).replace(/^(\.\.[/\\])+/, ''));
   if (!filePath.startsWith(PUBLIC_DIR)) { res.writeHead(403); return res.end('Forbidden'); }
@@ -226,12 +265,28 @@ function endRound(room, winnerSeat, reason) {
   if (g.scores.A >= room.target || g.scores.B >= room.target) {
     room.phase = 'gameOver';
     room.winnerTeam = g.scores.A >= room.target ? 'A' : 'B';
+    recordGameResults(room);
     broadcast(room);
     return;
   }
   room.phase = 'roundEnd';
   broadcast(room);
   room.roundTimer = setTimeout(() => startNextRound(room), ROUND_GAP_MS);
+}
+
+// Record leaderboard stats for each human seat when a game finishes.
+function recordGameResults(room) {
+  const g = room.game;
+  for (const s of room.seats) {
+    if (!s.occupied || s.isBot || !s.name) continue;
+    const team = E.teamOf(s.seat);
+    DB.recordResult({
+      name: s.name,
+      won: team === room.winnerTeam,
+      points: g.scores[team],
+      roundsWon: 0
+    }).catch(() => {});
+  }
 }
 
 function startNextRound(room) {
@@ -332,6 +387,13 @@ wss.on('connection', (ws) => {
         if (!room) return;
         const s = room.seats[ws.ctx.seat];
         if (s && m.name) { s.name = String(m.name).slice(0, 16); broadcast(room); }
+        break;
+      }
+      case 'getLeaderboard': {
+        const myName = (room && ws.ctx.seat >= 0) ? room.seats[ws.ctx.seat].name : m.name;
+        Promise.all([DB.leaderboard(20), myName ? DB.profile(myName) : null])
+          .then(([rows, you]) => send(ws, { type: 'leaderboard', rows, you }))
+          .catch(() => {});
         break;
       }
       case 'start': {

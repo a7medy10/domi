@@ -14,3 +14,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # Set this in the Render dashboard (Environment tab) to your MongoDB Atlas URI to
+      # make the leaderboard persistent. Without it the server uses an in-memory board.
+      - key: MONGODB_URI
+        sync: false

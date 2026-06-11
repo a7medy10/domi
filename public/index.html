@@ -144,6 +144,17 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .scores2 .n.a{color:#00ff88}.scores2 .n.b{color:#ffb4ab}
 .scores2 .l{font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-top:2px}
 
+/* Leaderboard */
+.lb-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.04);margin-bottom:6px;border:1px solid rgba(255,255,255,.05)}
+.lb-row.me{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.08)}
+.lb-rank{font-family:monospace;font-weight:800;width:26px;text-align:center;color:rgba(255,255,255,.6)}
+.lb-name{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-pts{font-family:monospace;font-weight:700;color:#00ff88}
+.lb-w{font-family:monospace;font-size:11px;color:rgba(255,255,255,.45);width:46px;text-align:right}
+.tier{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:999px;border:1px solid currentColor}
+.tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
+.lb-empty{text-align:center;color:rgba(255,255,255,.4);font-size:13px;padding:16px}
+
 .hidden{display:none!important}
 @media (max-width:380px){
   #board-chain{max-width:94vw}
@@ -182,7 +193,10 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
       <h1>Dominos Online</h1>
       <div class="code">Room <span id="hdr-code">----</span> · Round <span id="hdr-round">1</span></div>
     </div>
-    <button class="icon-btn" onclick="leaveRoom()" title="Leave">✕</button>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" onclick="openLeaderboard()" title="Leaderboard">🏆</button>
+      <button class="icon-btn" onclick="leaveRoom()" title="Leave">✕</button>
+    </div>
   </header>
 
   <div id="score-bar"><div class="glass">
@@ -255,6 +269,7 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
       <input id="code-input" placeholder="CODE" maxlength="4">
       <button class="btn-ghost" onclick="joinRoom()">Join</button>
     </div>
+    <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="openLeaderboard()">🏆 Leaderboard</button>
     <div class="err-msg" id="connect-err"></div>
   </div>
 </div>
@@ -307,7 +322,18 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
       <div><div class="n b" id="go-b">0</div><div class="l">Team B</div></div>
     </div>
     <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" onclick="act('rematch')">🔄 Rematch</button>
+    <button class="btn-ghost" style="width:100%;margin-bottom:8px" onclick="openLeaderboard()">🏆 Leaderboard</button>
     <button class="btn-ghost" style="width:100%" onclick="leaveRoom()">Leave</button>
+  </div>
+</div>
+
+<!-- ===== LEADERBOARD ===== -->
+<div class="overlay" id="lb-overlay">
+  <div class="card-modal">
+    <h2>🏆 Leaderboard</h2>
+    <div class="sub" id="lb-you"></div>
+    <div id="lb-rows"></div>
+    <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="hide('lb-overlay')">Close</button>
   </div>
 </div>
 
@@ -343,10 +369,12 @@ function connect(then){
 function sendMsg(o){ if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
 function createRoom(){
   const name = ($('name-input').value||'Player').trim();
+  localStorage.setItem('domiName', name);
   connect(()=> sendMsg({type:'create', name}));
 }
 function joinRoom(){
   const name = ($('name-input').value||'Player').trim();
+  localStorage.setItem('domiName', name);
   const code = ($('code-input').value||'').trim().toUpperCase();
   if (code.length<3) return showErr('connect-err','Enter a room code');
   connect(()=> sendMsg({type:'join', code, name}));
@@ -363,6 +391,38 @@ function handle(m){
     return;
   }
   if (m.type==='state'){ S=m; render(); }
+  if (m.type==='leaderboard'){ renderLeaderboard(m.rows, m.you); }
+}
+// ---------- leaderboard ----------
+function lbName(){
+  if (S && mySeat>=0 && S.seats) return S.seats[mySeat].name;
+  return ($('name-input') && $('name-input').value.trim()) || (localStorage.getItem('domiName')||'');
+}
+function openLeaderboard(){
+  show('lb-overlay');
+  $('lb-rows').innerHTML = '<div class="lb-empty">loading…</div>';
+  $('lb-you').textContent = '';
+  const name = lbName();
+  if (ws && ws.readyState===1){ sendMsg({type:'getLeaderboard', name}); }
+  else {
+    // not connected to WS (e.g. on connect screen) — use REST
+    fetch(WS_URL.replace(/^ws/,'http')+'/api/leaderboard')
+      .then(r=>r.json()).then(d=>renderLeaderboard(d.rows, null))
+      .catch(()=>{ $('lb-rows').innerHTML='<div class="lb-empty">leaderboard unavailable</div>'; });
+  }
+}
+function renderLeaderboard(rows, you){
+  if (you) $('lb-you').innerHTML = `You: <span class="tier ${you.tier}">${you.tier}</span> · ${you.points} pts · ${you.wins}W/${you.losses}L`
+    + (you.rank?` · rank #${you.rank}`:'');
+  const meName = (lbName()||'').toLowerCase();
+  if (!rows || !rows.length){ $('lb-rows').innerHTML='<div class="lb-empty">No games played yet — be the first!</div>'; return; }
+  $('lb-rows').innerHTML = rows.map(r=>`
+    <div class="lb-row ${r.name.toLowerCase()===meName?'me':''}">
+      <div class="lb-rank">${r.rank}</div>
+      <div class="lb-name">${esc(r.name)} <span class="tier ${r.tier}">${r.tier}</span></div>
+      <div class="lb-pts">${r.points}</div>
+      <div class="lb-w">${r.wins}W</div>
+    </div>`).join('');
 }
 function connectVisible(){ return $('connect-overlay').classList.contains('show'); }
 function showErr(id,msg){ const e=$(id); e.textContent=msg; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),4000); }
@@ -522,6 +582,8 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 // ---------- reconnect on reload ----------
 window.addEventListener('load',()=>{
+  const savedName = localStorage.getItem('domiName');
+  if (savedName && $('name-input')) $('name-input').value = savedName;
   const saved = localStorage.getItem('domi');
   if (saved){
     try{

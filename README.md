@@ -50,3 +50,19 @@ To let phones on your Wi-Fi join, use your PC's LAN IP, e.g. `http://192.168.1.2
 **Client on Vercel (optional):** deploy the `public/` folder as a static site and set
 `WS_URL` in `index.html` to your server's `wss://...` URL (currently it auto-derives
 from `location.host`, which is correct when the Node server serves the page itself).
+
+## Leaderboard / ranks (persistent)
+- The server tracks per-player stats keyed by **name** (lowercased), so the same name
+  accumulates wins/points across the online client *and* single-player. Tiers by points:
+  Bronze (0) → Silver (200) → Gold (600) → Platinum (1500) → Diamond (3000).
+- **Storage:** set `MONGODB_URI` (and optionally `MONGODB_DB`, default `domi`) to a MongoDB
+  Atlas connection string. Without it, the server falls back to an **in-memory** board that
+  resets on restart. On Render, add `MONGODB_URI` under the service's *Environment* tab.
+  - Atlas: create a DB user, allow network access from `0.0.0.0/0` (Render has no fixed IP),
+    and copy the `mongodb+srv://...` URI.
+- **REST API** (CORS-enabled): `GET /api/leaderboard?limit=20`, `GET /api/profile?name=...`,
+  `POST /api/result {name, won, points}`.
+- **Single-player** posts results to a server too — edit `LEADERBOARD_API` near the top of the
+  `<script>` in `domi.html` (default `http://localhost:3000`) to point at your hosted URL,
+  e.g. `https://domi-dominoes.onrender.com`, so single-player games join the same board.
+- The online client needs no config — its 🏆 button uses the same origin it's served from.
