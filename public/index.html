@@ -50,19 +50,19 @@ header h1{font-size:16px;font-weight:800;color:#00ff88}
 header .code{font-family:monospace;font-size:12px;color:rgba(255,255,255,.55)}
 header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.08);border:none;color:#e5e2e1;cursor:pointer}
 
-/* Compact score chip in the corner */
-#score-bar{position:fixed;top:50px;left:10px;z-index:40;display:flex;align-items:center;gap:6px;
-  background:rgba(20,22,21,.7);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);
-  border-radius:999px;padding:5px 10px;font-family:monospace;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
-#score-teams{display:flex;gap:8px}
-.sc-chip{display:flex;align-items:center;gap:4px;font-weight:700;color:rgba(255,255,255,.7)}
-.sc-chip i{width:7px;height:7px;border-radius:50%}
-.sc-chip b{font-size:13px;color:#e5e2e1}
-#score-ffa{display:flex;gap:8px;flex-wrap:wrap}
-.sc-chip2{display:flex;align-items:center;gap:3px;font-weight:700}
-.sc-chip2 b{font-size:13px;color:#e5e2e1}
+/* Score chip in the corner */
+#score-bar{position:fixed;top:50px;left:10px;z-index:40;display:flex;align-items:center;gap:10px;
+  background:rgba(20,22,21,.75);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:8px 14px;font-family:monospace;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#score-teams{display:flex;gap:14px}
+.sc-chip{display:flex;align-items:center;gap:5px;font-weight:700;color:rgba(255,255,255,.7);font-size:13px}
+.sc-chip i{width:9px;height:9px;border-radius:50%}
+.sc-chip b{font-size:24px;color:#e5e2e1;line-height:1}
+#score-ffa{display:flex;gap:12px;flex-wrap:wrap}
+.sc-chip2{display:flex;align-items:center;gap:5px;font-weight:700;font-size:18px}
+.sc-chip2 b{font-size:22px;color:#e5e2e1;line-height:1}
 .sc-chip2.lead b{color:#00ff88}
-.sc-tgt{color:rgba(255,255,255,.4);font-size:11px}
+.sc-tgt{color:rgba(255,255,255,.45);font-size:13px}
 
 /* Players seated around the table — each on a side, styled as a seat plate */
 .opp{position:fixed;z-index:12;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -82,9 +82,10 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .opp-count{position:absolute;top:-4px;right:-6px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#2a2a2a;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#00ff88}
 .opp-mini{display:flex;gap:2px;margin-top:1px}
 .opp-mini i{width:6px;height:12px;border-radius:2px;background:#2a2a2a;border:1px solid rgba(255,255,255,.12)}
-.opp-hand{display:flex;align-items:center;gap:3px;margin-top:2px}
-.opp-hand i{width:7px;height:14px;border-radius:2px;background:linear-gradient(#333,#222);border:1px solid rgba(255,255,255,.15);box-shadow:0 1px 2px rgba(0,0,0,.4)}
-.opp-hand b{font-family:monospace;font-size:12px;font-weight:800;color:#00ff88;margin-left:3px}
+.opp-hand{display:flex;align-items:center;gap:3px;margin-top:3px}
+.opp-hand i{width:13px;height:26px;border-radius:3px;background:linear-gradient(150deg,#3a3a3a,#1e1e1e);border:1px solid rgba(255,255,255,.18);box-shadow:0 1px 3px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.03);position:relative}
+.opp-hand i::after{content:'';position:absolute;top:50%;left:50%;width:3px;height:3px;border-radius:50%;background:rgba(0,255,136,.5);transform:translate(-50%,-50%)}
+.opp-hand b{font-family:monospace;font-size:14px;font-weight:800;color:#00ff88;margin-left:4px}
 .opp-name{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.6);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .opp-tag{font-size:8px;font-family:monospace;color:#00ff88}
 .opp-move{font-size:9px;font-family:monospace;color:#00ff88;min-height:11px;background:rgba(0,255,136,.1);border-radius:6px;padding:0 5px}
@@ -686,7 +687,7 @@ function renderOpponents(){
     seatSlot[s.seat]=el.id;
     const t=s.team.toLowerCase();
     const tag=s.isBot?'🤖 BOT':(!s.connected&&s.occupied?'OFFLINE':(S.teams?('TEAM '+s.team):('★ '+s.score)));
-    const mini = '<i></i>'.repeat(Math.min(s.handCount,10));
+    const mini = '<i></i>'.repeat(Math.min(s.handCount,7));
     el.innerHTML=`
       <div class="opp-avatar team-${t}${turn?' turn':''}">${s.avatar||s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
       <div class="opp-hand">${mini}<b>${s.handCount}</b></div>
