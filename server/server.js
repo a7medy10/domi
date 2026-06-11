@@ -240,6 +240,7 @@ function startNextRound(room) {
   room.roundNum++;
   E.startRound(room.game, room.lastWinner);
   room.lastRound = null;
+  room.phase = 'playing';   // beginTurn() bails unless room phase is 'playing'
   beginTurn(room);
 }
 
