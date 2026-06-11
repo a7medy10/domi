@@ -51,6 +51,13 @@ To let phones on your Wi-Fi join, use your PC's LAN IP, e.g. `http://192.168.1.2
 `WS_URL` in `index.html` to your server's `wss://...` URL (currently it auto-derives
 from `location.host`, which is correct when the Node server serves the page itself).
 
+## Game modes (online lobby)
+The host picks in the lobby before starting:
+- **2v2 Teams** (4 players) — classic team scoring (the only mode in single-player `domi.html`).
+- **1v1 / 3P / 4P Free-for-all** — no teams; the player who goes out scores the sum of *everyone else's* pips; first to the target wins.
+- **Draw vs Block** — Draw lets a stuck player pull from the boneyard; Block forces a pass instead. (With 4 players the set is fully dealt, so the boneyard only matters in 2–3 player games.)
+Empty active seats are filled with bots at start.
+
 ## Leaderboard / ranks (persistent)
 - The server tracks per-player stats keyed by **name** (lowercased), so the same name
   accumulates wins/points across the online client *and* single-player. Tiers by points:

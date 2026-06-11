@@ -155,6 +155,15 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 .tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
 .lb-empty{text-align:center;color:rgba(255,255,255,.4);font-size:13px;padding:16px}
 
+/* FFA scoreboard */
+#score-ffa .frow{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+#score-ffa .fav{font-size:16px;width:22px;text-align:center}
+#score-ffa .fname{flex:1;min-width:0;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#score-ffa .fbar{flex:1.4;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+#score-ffa .fbar > div{height:100%;background:#00ff88;border-radius:3px;transition:width .4s}
+#score-ffa .fpts{font-family:monospace;font-weight:800;font-size:14px;width:34px;text-align:right}
+#score-ffa .frow.lead .fpts{color:#00ff88}
+.option-row{flex-wrap:wrap}
 /* Avatar picker */
 #avatar-pick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 #avatar-pick .av{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -236,16 +245,19 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   </header>
 
   <div id="score-bar"><div class="glass">
-    <div class="team-row">
-      <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div><span class="team-name" style="color:#00ff88">Team A</span></div>
-      <span class="team-score" id="sa" style="color:#00ff88">0</span>
+    <div id="score-teams">
+      <div class="team-row">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div><span class="team-name" style="color:#00ff88">Team A</span></div>
+        <span class="team-score" id="sa" style="color:#00ff88">0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-a" id="ba" style="width:0%"></div></div>
+      <div class="team-row">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ffb4ab"></div><span class="team-name" style="color:#ffb4ab">Team B</span></div>
+        <span class="team-score" id="sb" style="color:#ffb4ab">0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-b" id="bb" style="width:0%"></div></div>
     </div>
-    <div class="bar"><div class="bar-fill bar-a" id="ba" style="width:0%"></div></div>
-    <div class="team-row">
-      <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ffb4ab"></div><span class="team-name" style="color:#ffb4ab">Team B</span></div>
-      <span class="team-score" id="sb" style="color:#ffb4ab">0</span>
-    </div>
-    <div class="bar"><div class="bar-fill bar-b" id="bb" style="width:0%"></div></div>
+    <div id="score-ffa" class="hidden"></div>
     <div class="meta">First to <span id="tgt">101</span> wins</div>
   </div></div>
 
@@ -321,6 +333,18 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     <h3>Seats</h3>
     <div id="seat-list"></div>
     <div id="host-controls" class="hidden">
+      <h3>🎮 Mode</h3>
+      <div class="option-row">
+        <button class="option-btn" data-mode="teams" onclick="setMode('teams',4)">2v2 Teams</button>
+        <button class="option-btn" data-mode="ffa2" onclick="setMode('ffa',2)">1v1</button>
+        <button class="option-btn" data-mode="ffa3" onclick="setMode('ffa',3)">3P</button>
+        <button class="option-btn" data-mode="ffa4" onclick="setMode('ffa',4)">4P FFA</button>
+      </div>
+      <h3>🃏 Rules</h3>
+      <div class="option-row">
+        <button class="option-btn" data-draw="1" onclick="setDraw(true)">Draw</button>
+        <button class="option-btn" data-draw="0" onclick="setDraw(false)">Block</button>
+      </div>
       <h3>🎯 Target score</h3>
       <div class="option-row">
         <button class="option-btn" data-t="51" onclick="setTarget(51)">51</button>
@@ -339,10 +363,11 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   <div class="card-modal">
     <h2 id="round-title">Round Complete</h2>
     <div class="sub" id="round-reason"></div>
-    <div class="scores2">
+    <div class="scores2" id="round-teams">
       <div><div class="n a" id="round-a">0</div><div class="l">Team A</div></div>
       <div><div class="n b" id="round-b">0</div><div class="l">Team B</div></div>
     </div>
+    <div id="round-ffa" class="hidden" style="margin:10px 0"></div>
     <div class="sub" id="round-next">Next round starting…</div>
     <button class="btn-primary hidden" id="round-next-btn" style="width:100%" onclick="act('nextRound')">▶️ Next Round Now</button>
   </div>
@@ -354,10 +379,11 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     <div class="icon" id="go-icon">🏆</div>
     <h2 id="go-title">Team Victory!</h2>
     <div class="sub" id="go-msg"></div>
-    <div class="scores2">
+    <div class="scores2" id="go-teams">
       <div><div class="n a" id="go-a">0</div><div class="l">Team A</div></div>
       <div><div class="n b" id="go-b">0</div><div class="l">Team B</div></div>
     </div>
+    <div id="go-ffa" class="hidden" style="margin:10px 0"></div>
     <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" onclick="act('rematch')">🔄 Rematch</button>
     <button class="btn-ghost" style="width:100%;margin-bottom:8px" onclick="openLeaderboard()">🏆 Leaderboard</button>
     <button class="btn-ghost" style="width:100%" onclick="leaveRoom()">Leave</button>
@@ -463,6 +489,8 @@ function renderAvatarPick(){
 }
 function act(type, extra){ sendMsg(Object.assign({type}, extra||{})); }
 function setTarget(t){ sendMsg({type:'setTarget', target:t}); }
+function setMode(mode, n){ sendMsg({type:'setMode', mode, numPlayers:n, draw:S?S.draw:true}); }
+function setDraw(d){ sendMsg({type:'setMode', mode:S&&S.teams?'teams':'ffa', numPlayers:S?S.numPlayers:4, draw:d}); }
 function leaveRoom(){ try{ws.close();}catch{} localStorage.removeItem('domi'); location.reload(); }
 
 function handle(m){
@@ -509,7 +537,7 @@ function onEmote(m){ const t=(m.team||'a').toLowerCase(); addChatLine(`<span cla
 function floatEmote(seat, emoji){
   let el;
   if (seat===mySeat) el=$('player-avatar');
-  else { const off=(seat-mySeat+4)%4; const id={1:'opp-left',2:'opp-top',3:'opp-right'}[off]; el=id&&$(id); }
+  else if (S){ const k=(seat-mySeat+S.numPlayers)%S.numPlayers; const layout={2:['opp-top'],3:['opp-left','opp-right'],4:['opp-left','opp-top','opp-right']}[S.numPlayers]||['opp-left','opp-top','opp-right']; const id=layout[k-1]; el=id&&$(id); }
   if(!el) return;
   const r=el.getBoundingClientRect();
   const f=document.createElement('div'); f.className='emote-float'; f.textContent=emoji;
@@ -613,28 +641,51 @@ function renderLobby(){
   $('host-controls').classList.toggle('hidden', !isHost);
   $('wait-msg').classList.toggle('hidden', isHost);
   document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('active', +b.dataset.t===S.target));
+  const modeKey = S.teams ? 'teams' : ('ffa'+S.numPlayers);
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active', b.dataset.mode===modeKey));
+  document.querySelectorAll('[data-draw]').forEach(b=>b.classList.toggle('active', (b.dataset.draw==='1')===!!S.draw));
 }
 
 function renderHeader(){ $('hdr-code').textContent=S.code; $('hdr-round').textContent=S.roundNum; }
 function renderScores(){
-  $('sa').textContent=S.scores.A; $('sb').textContent=S.scores.B; $('tgt').textContent=S.target;
-  $('ba').style.width=Math.min(S.scores.A/S.target*100,100)+'%';
-  $('bb').style.width=Math.min(S.scores.B/S.target*100,100)+'%';
+  $('tgt').textContent=S.target;
+  if (S.teams){
+    $('score-teams').classList.remove('hidden'); $('score-ffa').classList.add('hidden');
+    $('sa').textContent=S.scores.A; $('sb').textContent=S.scores.B;
+    $('ba').style.width=Math.min(S.scores.A/S.target*100,100)+'%';
+    $('bb').style.width=Math.min(S.scores.B/S.target*100,100)+'%';
+  } else {
+    $('score-teams').classList.add('hidden'); $('score-ffa').classList.remove('hidden');
+    const lead=Math.max(...S.seats.map(s=>s.score),0);
+    $('score-ffa').innerHTML = S.seats.map(s=>`
+      <div class="frow ${s.score===lead&&lead>0?'lead':''}">
+        <span class="fav">${s.avatar||'🙂'}</span>
+        <span class="fname">${esc(s.name)}${s.seat===mySeat?' (you)':''}</span>
+        <span class="fbar"><div style="width:${Math.min(s.score/S.target*100,100)}%"></div></span>
+        <span class="fpts">${s.score}</span>
+      </div>`).join('');
+  }
 }
-function seatAt(offset){ return S.seats[(mySeat+offset)%4]; }
+function oppSlots(){
+  // active opponents (everyone but me), mapped to fixed on-screen slots by player count
+  const others=[]; for(let k=1;k<S.numPlayers;k++) others.push(S.seats[(mySeat+k)%S.numPlayers]);
+  const layout={2:['opp-top'],3:['opp-left','opp-right'],4:['opp-left','opp-top','opp-right']}[S.numPlayers]||['opp-left','opp-top','opp-right'];
+  return {others, layout};
+}
 function renderOpponents(){
-  // left = +1, top = +2, right = +3 (clockwise around you)
-  const map = {'opp-left':1,'opp-top':2,'opp-right':3};
-  for (const [id,off] of Object.entries(map)){
-    const s = seatAt(off);
-    const t = s.team.toLowerCase();
-    const turn = S.current===s.seat;
-    const tag = s.isBot?'BOT':(!s.connected&&s.occupied?'OFFLINE':'');
-    $(id).innerHTML = `
+  ['opp-left','opp-top','opp-right'].forEach(id=>{ $(id).classList.add('hidden'); $(id).innerHTML=''; });
+  const {others, layout}=oppSlots();
+  others.forEach((s,i)=>{
+    const id=layout[i]; if(!id) return;
+    const el=$(id); el.classList.remove('hidden');
+    const t=s.team.toLowerCase();
+    const turn=S.current===s.seat;
+    const tag=s.isBot?'BOT':(!s.connected&&s.occupied?'OFFLINE':'');
+    el.innerHTML=`
       <div class="opp-avatar team-${t}${turn?' turn':''}">${s.avatar||s.team}${turn?'<div class="opp-thinking"></div>':''}<div class="opp-count">${s.handCount}</div></div>
       <div class="opp-name">${esc(s.name)}</div>
       <div class="opp-tag">${tag}</div>`;
-  }
+  });
 }
 function renderBoard(){
   const bc=$('board-chain');
@@ -717,22 +768,50 @@ function renderTimer(){
   };
   tick(); timerInt=setInterval(tick,1000);
 }
+function standingsHTML(){
+  const rows=S.seats.slice().sort((a,b)=>b.score-a.score);
+  return rows.map((s,i)=>`<div class="frow ${i===0?'lead':''}" style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <span class="fav">${s.avatar||'🙂'}</span>
+      <span class="fname" style="flex:1;text-align:left">${esc(s.name)}${s.seat===mySeat?' (you)':''}</span>
+      <span class="fpts" style="font-family:monospace;font-weight:800;color:${i===0?'#00ff88':'#e5e2e1'}">${s.score}</span>
+    </div>`).join('');
+}
 function renderRoundEnd(){
   const r=S.lastRound; if(!r) return;
-  $('round-title').textContent=`Round ${S.roundNum} — Team ${r.team} +${r.points}`;
-  $('round-reason').textContent=r.reason||'';
-  $('round-a').textContent=r.a; $('round-b').textContent=r.b;
   $('round-next-btn').classList.toggle('hidden', mySeat!==S.hostSeat);
+  if (S.teams){
+    $('round-teams').classList.remove('hidden'); $('round-ffa').classList.add('hidden');
+    $('round-title').textContent=`Round ${S.roundNum} — Team ${r.team} +${r.points}`;
+    $('round-reason').textContent=r.reason||'';
+    $('round-a').textContent=r.a; $('round-b').textContent=r.b;
+  } else {
+    $('round-teams').classList.add('hidden'); $('round-ffa').classList.remove('hidden');
+    $('round-title').textContent=`Round ${S.roundNum} — ${esc(r.winnerName)} +${r.points}`;
+    $('round-reason').textContent=r.reason||'';
+    $('round-ffa').innerHTML=standingsHTML();
+  }
 }
 function renderGameOver(){
-  const w=S.winnerTeam;
-  const mine = S.seats[mySeat] && S.seats[mySeat].team===w;
-  $('go-icon').textContent = mine?'🏆':'😞';
-  $('go-title').textContent = mine?'Victory!':'Defeat';
-  $('go-title').style.color = w==='A'?'#00ff88':'#ffb4ab';
-  $('go-msg').textContent = `Team ${w} reached ${S.target} points.`;
-  $('go-a').textContent=S.scores.A; $('go-b').textContent=S.scores.B;
   $('go-rematch').classList.toggle('hidden', mySeat!==S.hostSeat);
+  if (S.teams){
+    $('go-teams').classList.remove('hidden'); $('go-ffa').classList.add('hidden');
+    const w=S.winnerTeam;
+    const mine = S.seats[mySeat] && S.seats[mySeat].team===w;
+    $('go-icon').textContent = mine?'🏆':'😞';
+    $('go-title').textContent = mine?'Victory!':'Defeat';
+    $('go-title').style.color = w==='A'?'#00ff88':'#ffb4ab';
+    $('go-msg').textContent = `Team ${w} reached ${S.target} points.`;
+    $('go-a').textContent=S.scores.A; $('go-b').textContent=S.scores.B;
+  } else {
+    $('go-teams').classList.add('hidden'); $('go-ffa').classList.remove('hidden');
+    const ws=S.seats.find(s=>s.seat===S.winnerSeat);
+    const mine = S.winnerSeat===mySeat;
+    $('go-icon').textContent = mine?'🏆':'😞';
+    $('go-title').textContent = mine?'You win!':`${ws?esc(ws.name):'Winner'} wins!`;
+    $('go-title').style.color = '#00ff88';
+    $('go-msg').textContent = `First to ${S.target} points.`;
+    $('go-ffa').innerHTML=standingsHTML();
+  }
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 

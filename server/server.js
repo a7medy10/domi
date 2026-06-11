@@ -87,8 +87,13 @@ function newRoom(code) {
     target: 101,
     roundNum: 1,
     lastWinner: -1,
-    winnerTeam: null,
+    winnerTeam: null,               // teams mode winner
+    winnerSeat: -1,                 // ffa mode winner
     lastRound: null,
+    // mode config
+    teams: true,                    // true = 2v2 teams; false = free-for-all
+    numPlayers: 4,                  // active seats (2/3/4)
+    draw: true,                     // true = draw from boneyard when stuck; false = block (pass)
     logs: [],
     turnEndsAt: null,
     turnTimer: null,
@@ -101,6 +106,12 @@ function newRoom(code) {
     game: null
   };
 }
+function activeSeats(room) { return room.seats.slice(0, room.numPlayers); }
+
+function roomLog(room, msg) {
+  room.logs.push(msg);
+  if (room.logs.length > 30) room.logs.shift();
+}
 
 function roomLog(room, msg) {
   room.logs.push(msg);
@@ -110,11 +121,12 @@ function roomLog(room, msg) {
 // ---------- state serialization (redacted per viewer) ----------
 function buildState(room, viewerSeat) {
   const g = room.game;
-  const seats = room.seats.map(s => ({
+  const seats = activeSeats(room).map(s => ({
     seat: s.seat, name: s.name, avatar: s.isBot ? '🤖' : (s.avatar || '🙂'),
     occupied: s.occupied, isBot: s.isBot,
     connected: s.connected, team: E.teamOf(s.seat),
-    handCount: g ? g.hands[s.seat].length : 0
+    handCount: g ? g.hands[s.seat].length : 0,
+    score: (g && !room.teams && g.scores[s.seat] != null) ? g.scores[s.seat] : 0
   }));
 
   let hand = [], hasMove = false, canDraw = false, canPass = false;
@@ -127,8 +139,9 @@ function buildState(room, viewerSeat) {
     });
     if (myTurn) {
       hasMove = E.anyCanPlay(g, viewerSeat);
-      canDraw = !hasMove && g.boneyard.length > 0;
-      canPass = !hasMove && g.boneyard.length === 0;
+      const canPullFromBone = room.draw && g.boneyard.length > 0;
+      canDraw = !hasMove && canPullFromBone;
+      canPass = !hasMove && !canPullFromBone;
     }
   } else if (g && viewerSeat >= 0) {
     hand = g.hands[viewerSeat].map(t => ({ id: t.id, top: t.top, bottom: t.bottom, playable: false, sides: [] }));
@@ -138,15 +151,16 @@ function buildState(room, viewerSeat) {
     type: 'state',
     code: room.code, phase: room.phase, hostSeat: room.hostSeat,
     target: room.target, roundNum: room.roundNum,
+    teams: room.teams, numPlayers: room.numPlayers, draw: room.draw,
     current: g ? g.current : -1, yourSeat: viewerSeat,
     turnEndsAt: room.turnEndsAt,
     seats,
     board: g ? g.board.map(it => ({ top: it.dTop, bottom: it.dBottom, double: it.tile.top === it.tile.bottom })) : [],
     ends: g ? E.getEnds(g.board) : null,
     boneyardCount: g ? g.boneyard.length : 0,
-    scores: g ? g.scores : { A: 0, B: 0 },
+    scores: (g && room.teams) ? g.scores : { A: 0, B: 0 },
     hand, hasMove, canDraw, canPass,
-    lastRound: room.lastRound, winnerTeam: room.winnerTeam,
+    lastRound: room.lastRound, winnerTeam: room.winnerTeam, winnerSeat: room.winnerSeat,
     logs: room.logs.slice(-6)
   };
 }
@@ -202,7 +216,7 @@ function beginTurn(room) {
 function autoResolve(room, seat) {
   const g = room.game;
   if (room.phase !== 'playing' || g.current !== seat) return;
-  while (!E.anyCanPlay(g, seat) && g.boneyard.length) {
+  while (room.draw && !E.anyCanPlay(g, seat) && g.boneyard.length) {
     g.hands[seat].push(g.boneyard.pop());
     roomLog(room, `${g.names[seat]} drew`);
   }
@@ -227,14 +241,14 @@ function doPlay(room, seat, tileId, side, isAutoMove) {
   roomLog(room, `${g.names[seat]} played [${tile.top}|${tile.bottom}] ${side === 'left' ? '⟵' : '⟶'}`);
 
   if (!g.hands[seat].length) return endRound(room, seat, `${g.names[seat]} cleared their hand`);
-  g.current = (g.current + 1) % 4;
+  g.current = (g.current + 1) % g.numPlayers;
   beginTurn(room);
 }
 
 function doDraw(room, seat) {
   const g = room.game;
   if (room.phase !== 'playing' || g.current !== seat) return;
-  if (!g.boneyard.length || E.anyCanPlay(g, seat)) return; // only draw when stuck
+  if (!room.draw || !g.boneyard.length || E.anyCanPlay(g, seat)) return; // only draw when allowed & stuck
   g.hands[seat].push(g.boneyard.pop());
   g.passes = 0;
   roomLog(room, `${g.names[seat]} drew a tile`);
@@ -244,37 +258,56 @@ function doDraw(room, seat) {
 function doPass(room, seat, isAutoMove) {
   const g = room.game;
   if (room.phase !== 'playing' || g.current !== seat) return;
-  if (E.anyCanPlay(g, seat) || g.boneyard.length) return; // can't pass with a move or tiles to draw
+  if (E.anyCanPlay(g, seat)) return;                  // can't pass with a legal move
+  if (room.draw && g.boneyard.length) return;          // must draw first
   g.passes++;
   roomLog(room, `${g.names[seat]} passed`);
-  if (g.passes >= 4 || E.isBlocked(g)) return endBlocked(room);
-  g.current = (g.current + 1) % 4;
+  if (g.passes >= g.numPlayers || E.isBlocked(g)) return endBlocked(room);
+  g.current = (g.current + 1) % g.numPlayers;
   beginTurn(room);
 }
 
 function endBlocked(room) {
   const g = room.game;
-  const sa = E.teamHandScore(g, 'A'), sb = E.teamHandScore(g, 'B');
-  const wt = sa <= sb ? 'A' : 'B';
-  const winnerSeat = E.teamSeats(wt)[0];
-  endRound(room, winnerSeat, `Blocked — Team ${wt} had the lower pip count`);
+  if (room.teams) {
+    const sa = E.teamHandScore(g, 'A'), sb = E.teamHandScore(g, 'B');
+    const wt = sa <= sb ? 'A' : 'B';
+    endRound(room, E.teamSeats(wt)[0], `Blocked — Team ${wt} had the lower pip count`);
+  } else {
+    // free-for-all: lowest hand pips wins
+    let best = 0, bestScore = Infinity;
+    for (let i = 0; i < g.numPlayers; i++) { const s = E.handScore(g.hands[i]); if (s < bestScore) { bestScore = s; best = i; } }
+    endRound(room, best, `Blocked — ${g.names[best]} had the fewest pips`);
+  }
 }
 
 function endRound(room, winnerSeat, reason) {
   const g = room.game;
   clearTimers(room);
   room.turnEndsAt = null;
-  const team = E.teamOf(winnerSeat);
-  const loser = team === 'A' ? 'B' : 'A';
-  const pts = E.teamHandScore(g, loser);
-  g.scores[team] += pts;
   room.lastWinner = winnerSeat;
-  room.lastRound = { team, points: pts, reason, a: g.scores.A, b: g.scores.B };
-  roomLog(room, `Round ${room.roundNum}: Team ${team} +${pts}`);
 
-  if (g.scores.A >= room.target || g.scores.B >= room.target) {
+  let over = false;
+  if (room.teams) {
+    const team = E.teamOf(winnerSeat);
+    const pts = E.teamHandScore(g, team === 'A' ? 'B' : 'A');
+    g.scores[team] += pts;
+    room.lastRound = { teams: true, team, points: pts, reason, a: g.scores.A, b: g.scores.B };
+    roomLog(room, `Round ${room.roundNum}: Team ${team} +${pts}`);
+    if (g.scores.A >= room.target || g.scores.B >= room.target) { over = true; room.winnerTeam = g.scores.A >= room.target ? 'A' : 'B'; }
+  } else {
+    const pts = E.othersHandScore(g, winnerSeat);
+    g.scores[winnerSeat] += pts;
+    const scores = {}; for (let i = 0; i < g.numPlayers; i++) scores[i] = g.scores[i];
+    room.lastRound = { teams: false, winnerSeat, winnerName: g.names[winnerSeat], points: pts, reason, scores };
+    roomLog(room, `Round ${room.roundNum}: ${g.names[winnerSeat]} +${pts}`);
+    let topSeat = -1, topScore = -1;
+    for (let i = 0; i < g.numPlayers; i++) if (g.scores[i] > topScore) { topScore = g.scores[i]; topSeat = i; }
+    if (topScore >= room.target) { over = true; room.winnerSeat = topSeat; }
+  }
+
+  if (over) {
     room.phase = 'gameOver';
-    room.winnerTeam = g.scores.A >= room.target ? 'A' : 'B';
     recordGameResults(room);
     broadcast(room);
     return;
@@ -287,16 +320,12 @@ function endRound(room, winnerSeat, reason) {
 // Record leaderboard stats for each human seat when a game finishes.
 function recordGameResults(room) {
   const g = room.game;
-  for (const s of room.seats) {
+  for (const s of activeSeats(room)) {
     if (!s.occupied || s.isBot || !s.name) continue;
-    const team = E.teamOf(s.seat);
-    DB.recordResult({
-      name: s.name,
-      won: team === room.winnerTeam,
-      points: g.scores[team],
-      roundsWon: 0,
-      avatar: s.avatar
-    }).catch(() => {});
+    let won, points;
+    if (room.teams) { const team = E.teamOf(s.seat); won = team === room.winnerTeam; points = g.scores[team]; }
+    else { won = s.seat === room.winnerSeat; points = g.scores[s.seat] || 0; }
+    DB.recordResult({ name: s.name, won, points, roundsWon: 0, avatar: s.avatar }).catch(() => {});
   }
 }
 
@@ -311,25 +340,30 @@ function startNextRound(room) {
 }
 
 function startGame(room) {
-  // Fill any empty seat with a bot.
-  room.seats.forEach((s, i) => {
-    if (!s.occupied) { s.isBot = true; s.name = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta'][i]; }
+  const botNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta'];
+  // Fill empty ACTIVE seats with bots.
+  activeSeats(room).forEach((s, i) => {
+    if (!s.occupied) { s.isBot = true; s.name = botNames[i]; }
   });
-  const names = room.seats.map(s => s.name);
-  room.game = { hands: [[], [], [], []], boneyard: [], board: [], scores: { A: 0, B: 0 },
-                current: 0, passes: 0, phase: 'playing', names };
+  const names = activeSeats(room).map(s => s.name);
+  const scores = room.teams ? { A: 0, B: 0 } : {};
+  if (!room.teams) for (let i = 0; i < room.numPlayers; i++) scores[i] = 0;
+  room.game = { hands: [], boneyard: [], board: [], scores,
+                current: 0, passes: 0, phase: 'playing', names,
+                numPlayers: room.numPlayers, teams: room.teams, draw: room.draw };
   room.roundNum = 1;
   room.lastWinner = -1;
   room.winnerTeam = null;
+  room.winnerSeat = -1;
   room.lastRound = null;
   room.phase = 'playing';
   E.startRound(room.game, -1);
-  roomLog(room, 'Game started');
+  roomLog(room, `Game started (${room.teams ? '2v2 teams' : room.numPlayers + 'p free-for-all'}, ${room.draw ? 'draw' : 'block'})`);
   beginTurn(room);
 }
 
 function firstFreeSeat(room) {
-  const s = room.seats.find(s => !s.occupied);
+  const s = activeSeats(room).find(s => !s.occupied);
   return s ? s.seat : -1;
 }
 
@@ -377,6 +411,7 @@ wss.on('connection', (ws) => {
       case 'addBot': {
         if (!room || room.phase !== 'lobby') return;
         if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can edit seats');
+        if (m.seat >= room.numPlayers) return;
         const s = room.seats[m.seat];
         if (s && !s.occupied) { s.isBot = true; s.name = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta'][m.seat]; broadcast(room); }
         break;
@@ -392,6 +427,19 @@ wss.on('connection', (ws) => {
         if (!room || room.phase !== 'lobby') return;
         if (ws.ctx.seat !== room.hostSeat) return;
         if ([51, 101, 201].includes(m.target)) { room.target = m.target; broadcast(room); }
+        break;
+      }
+      case 'setMode': {
+        if (!room || room.phase !== 'lobby') return;
+        if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can change the mode');
+        const teams = m.mode === 'teams';
+        const np = teams ? 4 : Math.min(4, Math.max(2, parseInt(m.numPlayers) || room.numPlayers));
+        const maxOcc = room.seats.reduce((mx, s, i) => s.occupied ? i : mx, -1);
+        if (np < maxOcc + 1) return err(ws, `Seat ${maxOcc + 1} is occupied — they must leave first`);
+        room.teams = teams;
+        room.numPlayers = np;
+        if (typeof m.draw === 'boolean') room.draw = m.draw;
+        broadcast(room);
         break;
       }
       case 'setName': {

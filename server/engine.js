@@ -80,39 +80,42 @@ function teamHandScore(game, team) { return teamSeats(team).reduce((s, i) => s +
 
 function anyCanPlay(game, seat) { return game.hands[seat].some(t => canPlay(t, game.board)); }
 function isBlocked(game) {
-  if (game.boneyard.length) return false;
-  for (let i = 0; i < 4; i++) if (anyCanPlay(game, i)) return false;
+  if (game.draw && game.boneyard.length) return false; // can still draw to get unstuck
+  for (let i = 0; i < game.numPlayers; i++) if (anyCanPlay(game, i)) return false;
   return true;
 }
 
+// Hand size scales down a little for fewer players so there's a boneyard to draw from.
+function handSizeFor(numPlayers) { return numPlayers <= 2 ? 7 : 7; }
+
 // Deal a fresh round. opener: seat to open, or -1 to auto-pick highest double across all hands.
 function startRound(game, opener) {
+  const n = game.numPlayers;
   const deck = createDeck();
-  game.hands = [deck.splice(0, 7), deck.splice(0, 7), deck.splice(0, 7), deck.splice(0, 7)];
+  const hs = handSizeFor(n);
+  game.hands = [];
+  for (let i = 0; i < n; i++) game.hands.push(deck.splice(0, hs));
   game.boneyard = deck;
   game.board = [];
   game.passes = 0;
   game.phase = 'playing';
 
-  let openLog = null;
   if (opener === -1) {
     // First round: whoever holds the highest double opens with it.
     let hd = -1, st = -1;
-    for (let i = 0; i < 4; i++) for (const t of game.hands[i]) {
+    for (let i = 0; i < n; i++) for (const t of game.hands[i]) {
       if (t.top === t.bottom && t.top > hd) { hd = t.top; st = i; }
     }
     if (st === -1) {
-      st = Math.floor(Math.random() * 4);
-      openLog = `${game.names[st]} opens`;
-      game.current = (st + 1) % 4;
-      return openLog;
+      st = Math.floor(Math.random() * n);
+      game.current = (st + 1) % n;
+      return `${game.names[st]} opens`;
     }
     const dt = game.hands[st].find(t => t.top === hd && t.bottom === hd);
     game.hands[st] = game.hands[st].filter(t => t.id !== dt.id);
     placeTile(game, st, dt, 'right');
-    openLog = `${game.names[st]} opens [${hd}|${hd}]`;
-    game.current = (st + 1) % 4;
-    return openLog;
+    game.current = (st + 1) % n;
+    return `${game.names[st]} opens [${hd}|${hd}]`;
   }
 
   // Later rounds: the previous winner opens (highest double, else highest tile).
@@ -124,8 +127,15 @@ function startRound(game, opener) {
   else tile = game.hands[w].reduce((b, t) => (t.top + t.bottom) > (b.top + b.bottom) ? t : b);
   game.hands[w] = game.hands[w].filter(t => t.id !== tile.id);
   placeTile(game, w, tile, 'right');
-  game.current = (w + 1) % 4;
+  game.current = (w + 1) % n;
   return `${game.names[w]} opens [${tile.top}|${tile.bottom}]`;
+}
+
+// Sum of every other player's pips (for free-for-all scoring).
+function othersHandScore(game, seat) {
+  let s = 0;
+  for (let i = 0; i < game.numPlayers; i++) if (i !== seat) s += handScore(game.hands[i]);
+  return s;
 }
 
 // Bot / auto-resolve picks a tile (and side) for the current seat, or null if it must pass.
@@ -149,6 +159,6 @@ function chooseMove(game, seat) {
 
 module.exports = {
   createDeck, getEnds, getSpinner, canPlay, getSides, orient, placeTile,
-  handScore, teamOf, teamSeats, teamHandScore, anyCanPlay, isBlocked,
+  handScore, teamOf, teamSeats, teamHandScore, othersHandScore, anyCanPlay, isBlocked,
   startRound, chooseMove
 };
