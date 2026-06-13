@@ -229,6 +229,14 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 #board-chain.grabbing{cursor:grabbing}
 #board-chain.grabbing .tile{pointer-events:none}
 
+/* RTL position swaps */
+html[dir="rtl"] #score-bar{left:auto;right:10px}
+html[dir="rtl"] #boneyard{left:auto;right:16px}
+html[dir="rtl"] .pos-tl{left:auto;right:8px}
+html[dir="rtl"] .pos-tr{right:auto;left:8px}
+html[dir="rtl"] .pos-br{right:auto;left:8px}
+html[dir="rtl"] .pos-bl{left:auto;right:8px}
+
 /* Themes — felt skins via body[data-felt] */
 #table-felt{background:var(--felt, radial-gradient(ellipse at 50% 45%, rgba(0,255,136,.12) 0%, #0e1715 50%, #0a100e 100%));border-color:var(--felt-rim, rgba(0,255,136,.28))}
 body[data-felt="green"]{--felt:radial-gradient(ellipse at 50% 42%,#1b6b46 0%,#114a32 55%,#0a2c1d 100%);--felt-rim:#3a2516}
@@ -328,8 +336,8 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
         </div>
       </div>
       <div id="action-btns">
-        <button class="btn-ghost" id="pass-btn" onclick="act('pass')" disabled>⏭️ PASS</button>
-        <button class="btn-primary" id="draw-btn" onclick="act('draw')" disabled>🎴 DRAW</button>
+        <button class="btn-ghost" id="pass-btn" data-i18n="pass" onclick="act('pass')" disabled>⏭️ PASS</button>
+        <button class="btn-primary" id="draw-btn" data-i18n="draw_btn" onclick="act('draw')" disabled>🎴 DRAW</button>
       </div>
     </div>
     <div id="hand"></div>
@@ -343,22 +351,23 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <div class="overlay show" id="connect-overlay">
   <div class="card-modal">
     <h2>🁫 Dominos Online</h2>
-    <div class="sub">Team 101 · play with up to 4 people</div>
+    <div class="sub" data-i18n="app_sub">Team 101 · play with up to 4 people</div>
     <div class="stack">
-      <input id="name-input" placeholder="Your name" maxlength="16">
+      <input id="name-input" data-i18n-ph="name_ph" placeholder="Your name" maxlength="16">
       <div id="avatar-pick"></div>
-      <button class="btn-primary" onclick="quickMatch()">⚡ Quick Play</button>
-      <button class="btn-ghost" onclick="createRoom()">➕ Create Room</button>
+      <button class="btn-primary" data-i18n="quick" onclick="quickMatch()">⚡ Quick Play</button>
+      <button class="btn-ghost" data-i18n="create" onclick="createRoom()">➕ Create Room</button>
     </div>
-    <div class="divider">or join / watch with a code</div>
+    <div class="divider" data-i18n="or_join">or join / watch with a code</div>
     <div class="row-join">
       <input id="code-input" placeholder="CODE" maxlength="4">
-      <button class="btn-ghost" onclick="joinRoom()">Join</button>
-      <button class="btn-ghost" onclick="watchRoom()">👀 Watch</button>
+      <button class="btn-ghost" data-i18n="join" onclick="joinRoom()">Join</button>
+      <button class="btn-ghost" data-i18n="watch" onclick="watchRoom()">👀 Watch</button>
     </div>
     <div class="row-join" style="margin-top:10px">
-      <button class="btn-ghost" style="flex:1" onclick="openLeaderboard()">🏆 Leaderboard</button>
-      <button class="btn-ghost" style="flex:1" onclick="openThemes()">🎨 Theme</button>
+      <button class="btn-ghost" style="flex:1" data-i18n="leaderboard" onclick="openLeaderboard()">🏆 Leaderboard</button>
+      <button class="btn-ghost" style="flex:1" data-i18n="theme" onclick="openThemes()">🎨 Theme</button>
+      <button class="btn-ghost" id="lang-btn" style="flex:0 0 auto" onclick="toggleLang()">ع</button>
     </div>
     <div class="err-msg" id="connect-err"></div>
   </div>
@@ -367,35 +376,35 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <!-- ===== LOBBY ===== -->
 <div class="overlay" id="lobby-overlay">
   <div class="card-modal">
-    <h2>Lobby</h2>
-    <div class="sub">Share this code with friends</div>
+    <h2 data-i18n="lobby">Lobby</h2>
+    <div class="sub" data-i18n="share_code">Share this code with friends</div>
     <div class="code-display" id="lobby-code">----</div>
     <div class="copy-hint" id="copy-hint">tap to copy</div>
-    <h3>Seats</h3>
+    <h3 data-i18n="seats">Seats</h3>
     <div id="seat-list"></div>
     <div id="host-controls" class="hidden">
-      <h3>🎮 Mode</h3>
+      <h3 data-i18n="mode">🎮 Mode</h3>
       <div class="option-row">
-        <button class="option-btn" data-mode="teams" onclick="setMode('teams',4)">2v2 Teams</button>
+        <button class="option-btn" data-mode="teams" onclick="setMode('teams',4)">2v2</button>
         <button class="option-btn" data-mode="ffa2" onclick="setMode('ffa',2)">1v1</button>
         <button class="option-btn" data-mode="ffa3" onclick="setMode('ffa',3)">3P</button>
-        <button class="option-btn" data-mode="ffa4" onclick="setMode('ffa',4)">4P FFA</button>
+        <button class="option-btn" data-mode="ffa4" onclick="setMode('ffa',4)">4P</button>
       </div>
-      <h3>🃏 Rules</h3>
+      <h3 data-i18n="rules">🃏 Rules</h3>
       <div class="option-row">
-        <button class="option-btn" data-draw="1" onclick="setDraw(true)">Draw</button>
-        <button class="option-btn" data-draw="0" onclick="setDraw(false)">Block</button>
+        <button class="option-btn" data-draw="1" data-i18n="draw" onclick="setDraw(true)">Draw</button>
+        <button class="option-btn" data-draw="0" data-i18n="block" onclick="setDraw(false)">Block</button>
       </div>
-      <h3>🎯 Target score</h3>
+      <h3 data-i18n="target">🎯 Target score</h3>
       <div class="option-row">
         <button class="option-btn" data-t="51" onclick="setTarget(51)">51</button>
         <button class="option-btn active" data-t="101" onclick="setTarget(101)">101</button>
         <button class="option-btn" data-t="201" onclick="setTarget(201)">201</button>
       </div>
-      <button class="btn-primary" style="width:100%;margin-top:16px" onclick="act('start')">▶️ Start Game</button>
+      <button class="btn-primary" style="width:100%;margin-top:16px" data-i18n="start" onclick="act('start')">▶️ Start Game</button>
     </div>
-    <div id="wait-msg" class="sub hidden" style="margin-top:16px">Waiting for the host to start…</div>
-    <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="leaveRoom()">Leave</button>
+    <div id="wait-msg" class="sub hidden" style="margin-top:16px" data-i18n="waiting">Waiting for the host to start…</div>
+    <button class="btn-ghost" style="width:100%;margin-top:10px" data-i18n="leave" onclick="leaveRoom()">Leave</button>
   </div>
 </div>
 
@@ -410,7 +419,7 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
     </div>
     <div id="round-ffa" class="hidden" style="margin:10px 0"></div>
     <div class="sub" id="round-next">Next round starting…</div>
-    <button class="btn-primary hidden" id="round-next-btn" style="width:100%" onclick="act('nextRound')">▶️ Next Round Now</button>
+    <button class="btn-primary hidden" id="round-next-btn" style="width:100%" data-i18n="next_round" onclick="act('nextRound')">▶️ Next Round Now</button>
   </div>
 </div>
 
@@ -425,9 +434,9 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
       <div><div class="n b" id="go-b">0</div><div class="l">Team B</div></div>
     </div>
     <div id="go-ffa" class="hidden" style="margin:10px 0"></div>
-    <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" onclick="act('rematch')">🔄 Rematch</button>
-    <button class="btn-ghost" style="width:100%;margin-bottom:8px" onclick="openLeaderboard()">🏆 Leaderboard</button>
-    <button class="btn-ghost" style="width:100%" onclick="leaveRoom()">Leave</button>
+    <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" data-i18n="rematch" onclick="act('rematch')">🔄 Rematch</button>
+    <button class="btn-ghost" style="width:100%;margin-bottom:8px" data-i18n="leaderboard" onclick="openLeaderboard()">🏆 Leaderboard</button>
+    <button class="btn-ghost" style="width:100%" data-i18n="leave" onclick="leaveRoom()">Leave</button>
   </div>
 </div>
 
@@ -436,12 +445,12 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
   <div class="card-modal">
     <h2>🏆 Leaderboard</h2>
     <div class="option-row" style="margin-bottom:8px">
-      <button class="option-btn active" data-period="all" onclick="setLbPeriod('all')">All-time</button>
-      <button class="option-btn" data-period="week" onclick="setLbPeriod('week')">This week</button>
+      <button class="option-btn active" data-period="all" data-i18n="all_time" onclick="setLbPeriod('all')">All-time</button>
+      <button class="option-btn" data-period="week" data-i18n="this_week" onclick="setLbPeriod('week')">This week</button>
     </div>
     <div class="sub" id="lb-you"></div>
     <div id="lb-rows"></div>
-    <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="hide('lb-overlay')">Close</button>
+    <button class="btn-ghost" style="width:100%;margin-top:12px" data-i18n="close" onclick="hide('lb-overlay')">Close</button>
   </div>
 </div>
 
@@ -449,9 +458,9 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <div class="overlay" id="theme-overlay">
   <div class="card-modal" style="text-align:center">
     <h2>🎨 Table Theme</h2>
-    <div class="sub">Pick your felt</div>
+    <div class="sub" data-i18n="pick_felt">Pick your felt</div>
     <div id="theme-grid"></div>
-    <button class="btn-primary" style="width:100%;margin-top:14px" onclick="hide('theme-overlay')">Done</button>
+    <button class="btn-primary" style="width:100%;margin-top:14px" data-i18n="done" onclick="hide('theme-overlay')">Done</button>
   </div>
 </div>
 
@@ -476,7 +485,7 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <!-- ===== CHAT ===== -->
 <div id="chat-panel" class="hidden">
   <div id="chat-head">
-    <span>💬 Room Chat</span>
+    <span data-i18n="room_chat">💬 Room Chat</span>
     <button class="icon-btn" onclick="toggleChat()" style="width:28px;height:28px">✕</button>
   </div>
   <div id="chat-msgs"></div>
@@ -487,8 +496,8 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
     <button onclick="sendEmote('🤔')">🤔</button><button onclick="sendEmote('👏')">👏</button>
   </div>
   <div id="chat-input-row">
-    <input id="chat-input" placeholder="Message…" maxlength="160" onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="btn-primary" style="padding:8px 14px" onclick="sendChat()">Send</button>
+    <input id="chat-input" data-i18n-ph="msg_ph" placeholder="Message…" maxlength="160" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="btn-primary" style="padding:8px 14px" data-i18n="send" onclick="sendChat()">Send</button>
   </div>
 </div>
 
@@ -496,11 +505,11 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <div class="overlay" id="side-overlay">
   <div class="card-modal" style="text-align:center">
     <div style="font-size:38px;margin-bottom:8px">⚖️</div>
-    <h2 style="font-size:18px">Choose Side</h2>
-    <div class="sub">This tile fits both ends</div>
+    <h2 style="font-size:18px" data-i18n="choose_side">Choose Side</h2>
+    <div class="sub" data-i18n="both_ends">This tile fits both ends</div>
     <div class="row-join">
-      <button class="btn-ghost" style="flex:1" onclick="chooseSide('left')">⟵ Left</button>
-      <button class="btn-primary" style="flex:1" onclick="chooseSide('right')">Right ⟶</button>
+      <button class="btn-ghost" style="flex:1" data-i18n="go_left" onclick="chooseSide('left')">⟵ Left</button>
+      <button class="btn-primary" style="flex:1" data-i18n="go_right" onclick="chooseSide('right')">Right ⟶</button>
     </div>
   </div>
 </div>
@@ -551,6 +560,60 @@ function renderThemes(){
   $('theme-grid').innerHTML = FELTS.map(([k,label])=>`<div class="theme-swatch ${k===myFelt?'sel':''}" data-felt="${k}" style="background:${feltPreview(k)}">${label}</div>`).join('');
   $('theme-grid').querySelectorAll('.theme-swatch').forEach(el=>el.onclick=()=>{ myFelt=el.dataset.felt; localStorage.setItem('domiFelt',myFelt); applyFelt(); renderThemes(); });
 }
+// ---------- i18n (English / العربية) ----------
+const I18N = {
+  app_sub:{en:'Team 101 · play with up to 4 people', ar:'تيم 101 · العب مع حتى 4 لاعبين'},
+  name_ph:{en:'Your name', ar:'اسمك'},
+  quick:{en:'⚡ Quick Play', ar:'⚡ لعب سريع'},
+  create:{en:'➕ Create Room', ar:'➕ إنشاء غرفة'},
+  or_join:{en:'or join / watch with a code', ar:'أو انضم / شاهد برمز'},
+  join:{en:'Join', ar:'انضمام'},
+  watch:{en:'👀 Watch', ar:'👀 مشاهدة'},
+  leaderboard:{en:'🏆 Leaderboard', ar:'🏆 المتصدرون'},
+  theme:{en:'🎨 Theme', ar:'🎨 الطاولة'},
+  lobby:{en:'Lobby', ar:'الردهة'},
+  share_code:{en:'Share this code with friends', ar:'شارك الرمز مع أصدقائك'},
+  seats:{en:'Seats', ar:'المقاعد'},
+  mode:{en:'🎮 Mode', ar:'🎮 الوضع'},
+  rules:{en:'🃏 Rules', ar:'🃏 القواعد'},
+  draw:{en:'Draw', ar:'سحب'},
+  block:{en:'Block', ar:'حظر'},
+  target:{en:'🎯 Target score', ar:'🎯 النقاط الهدف'},
+  start:{en:'▶️ Start Game', ar:'▶️ ابدأ اللعبة'},
+  waiting:{en:'Waiting for the host to start…', ar:'بانتظار أن يبدأ المضيف…'},
+  leave:{en:'Leave', ar:'خروج'},
+  your_turn:{en:'Your Turn', ar:'دورك'},
+  pass:{en:'⏭️ PASS', ar:'⏭️ تمرير'},
+  draw_btn:{en:'🎴 DRAW', ar:'🎴 اسحب'},
+  next_round:{en:'▶️ Next Round Now', ar:'▶️ الجولة التالية'},
+  rematch:{en:'🔄 Rematch', ar:'🔄 إعادة'},
+  close:{en:'Close', ar:'إغلاق'},
+  all_time:{en:'All-time', ar:'الكل'},
+  this_week:{en:'This week', ar:'هذا الأسبوع'},
+  pick_felt:{en:'Pick your felt', ar:'اختر طاولتك'},
+  done:{en:'Done', ar:'تم'},
+  choose_side:{en:'Choose Side', ar:'اختر الجهة'},
+  both_ends:{en:'This tile fits both ends', ar:'هذه القطعة تناسب الطرفين'},
+  go_left:{en:'⟵ Left', ar:'⟵ يسار'},
+  go_right:{en:'Right ⟶', ar:'يمين ⟶'},
+  recent:{en:'Recent games', ar:'آخر المباريات'},
+  room_chat:{en:'💬 Room Chat', ar:'💬 دردشة الغرفة'},
+  msg_ph:{en:'Message…', ar:'رسالة…'},
+  send:{en:'Send', ar:'إرسال'},
+  win:{en:'You win!', ar:'فزت!'},
+  victory:{en:'Victory!', ar:'فوز!'},
+  defeat:{en:'Defeat', ar:'خسارة'}
+};
+let lang = localStorage.getItem('domiLang') || 'en';
+function t(k){ const e=I18N[k]; return e ? (e[lang]||e.en) : k; }
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+  const lb=$('lang-btn'); if(lb) lb.textContent = lang==='ar' ? 'EN' : 'ع';
+}
+function toggleLang(){ lang = lang==='ar'?'en':'ar'; localStorage.setItem('domiLang',lang); applyLang(); if(S) render(); }
 function joinRoom(){
   const name = ($('name-input').value||'Player').trim();
   localStorage.setItem('domiName', name);
@@ -856,7 +919,7 @@ function renderControls(){
   $('pass-btn').disabled = !(myTurn && S.canPass);
   const lbl=$('turn-label');
   if (S.phase!=='playing'){ lbl.textContent='—'; }
-  else if (myTurn){ lbl.textContent='Your Turn'; lbl.style.color='#00ff88'; }
+  else if (myTurn){ lbl.textContent=t('your_turn'); lbl.style.color='#00ff88'; }
   else { lbl.textContent=esc(S.seats[S.current].name)+'…'; lbl.style.color='rgba(255,255,255,.55)'; }
 }
 function renderTimer(){
@@ -902,7 +965,7 @@ function renderGameOver(){
     const w=S.winnerTeam;
     const mine = S.seats[mySeat] && S.seats[mySeat].team===w;
     $('go-icon').textContent = mine?'🏆':'😞';
-    $('go-title').textContent = mine?'Victory!':'Defeat';
+    $('go-title').textContent = mine?t('victory'):t('defeat');
     $('go-title').style.color = w==='A'?'#00ff88':'#ffb4ab';
     $('go-msg').textContent = `Team ${w} reached ${S.target} points.`;
     $('go-a').textContent=S.scores.A; $('go-b').textContent=S.scores.B;
@@ -911,7 +974,7 @@ function renderGameOver(){
     const ws=S.seats.find(s=>s.seat===S.winnerSeat);
     const mine = S.winnerSeat===mySeat;
     $('go-icon').textContent = mine?'🏆':'😞';
-    $('go-title').textContent = mine?'You win!':`${ws?esc(ws.name):'Winner'} wins!`;
+    $('go-title').textContent = mine?t('win'):`${ws?esc(ws.name):'Winner'} 🏆`;
     $('go-title').style.color = '#00ff88';
     $('go-msg').textContent = `First to ${S.target} points.`;
     $('go-ffa').innerHTML=standingsHTML();
@@ -924,6 +987,7 @@ window.addEventListener('load',()=>{
   initBoardDrag();
   renderAvatarPick();
   applyFelt();
+  applyLang();
   if ('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
   document.addEventListener('pointerdown', ()=>{
     if(!audioCtx) initAudio();
