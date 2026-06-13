@@ -435,6 +435,10 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
 <div class="overlay" id="lb-overlay">
   <div class="card-modal">
     <h2>🏆 Leaderboard</h2>
+    <div class="option-row" style="margin-bottom:8px">
+      <button class="option-btn active" data-period="all" onclick="setLbPeriod('all')">All-time</button>
+      <button class="option-btn" data-period="week" onclick="setLbPeriod('week')">This week</button>
+    </div>
     <div class="sub" id="lb-you"></div>
     <div id="lb-rows"></div>
     <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="hide('lb-overlay')">Close</button>
@@ -456,7 +460,8 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
   <div class="card-modal" style="text-align:center">
     <div id="prof-av" style="font-size:54px;line-height:1">🙂</div>
     <h2 id="prof-name" style="margin-top:4px">—</h2>
-    <div id="prof-tier" style="margin-bottom:10px"></div>
+    <div id="prof-tier" style="margin-bottom:8px"></div>
+    <div id="prof-badges" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:10px"></div>
     <div class="scores2">
       <div><div class="n a" id="prof-pts">0</div><div class="l">Points</div></div>
       <div><div class="n" style="color:#e5e2e1" id="prof-wl">0/0</div><div class="l">W / L</div></div>
@@ -638,15 +643,17 @@ function lbName(){
   if (S && mySeat>=0 && S.seats) return S.seats[mySeat].name;
   return ($('name-input') && $('name-input').value.trim()) || (localStorage.getItem('domiName')||'');
 }
+let lbPeriod='all';
+function setLbPeriod(p){ lbPeriod=p; openLeaderboard(); }
 function openLeaderboard(){
   show('lb-overlay');
   $('lb-rows').innerHTML = '<div class="lb-empty">loading…</div>';
   $('lb-you').textContent = '';
+  document.querySelectorAll('[data-period]').forEach(b=>b.classList.toggle('active', b.dataset.period===lbPeriod));
   const name = lbName();
-  if (ws && ws.readyState===1){ sendMsg({type:'getLeaderboard', name}); }
+  if (ws && ws.readyState===1){ sendMsg({type:'getLeaderboard', name, period:lbPeriod}); }
   else {
-    // not connected to WS (e.g. on connect screen) — use REST
-    fetch(WS_URL.replace(/^ws/,'http')+'/api/leaderboard')
+    fetch(WS_URL.replace(/^ws/,'http')+'/api/leaderboard?period='+lbPeriod)
       .then(r=>r.json()).then(d=>renderLeaderboard(d.rows, null))
       .catch(()=>{ $('lb-rows').innerHTML='<div class="lb-empty">leaderboard unavailable</div>'; });
   }
@@ -674,6 +681,9 @@ function openProfile(name){
     $('prof-av').textContent = p.avatar||'🙂';
     $('prof-name').textContent = p.name;
     $('prof-tier').innerHTML = `<span class="tier ${p.tier}">${p.tier}</span>`;
+    $('prof-badges').innerHTML = (p.badges&&p.badges.length)
+      ? p.badges.map(b=>`<span style="font-size:11px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);color:#00ff88;border-radius:999px;padding:2px 8px">${esc(b)}</span>`).join('')
+      : '';
     $('prof-pts').textContent = p.points;
     $('prof-wl').textContent = `${p.wins}/${p.losses}`;
     $('prof-rank').textContent = p.rank?('#'+p.rank):'–';

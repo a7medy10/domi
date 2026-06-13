@@ -40,7 +40,8 @@ async function handleApi(req, res, urlObj) {
     }
     if (urlObj.pathname === '/api/leaderboard' && req.method === 'GET') {
       const limit = Math.min(50, parseInt(urlObj.searchParams.get('limit')) || 20);
-      return json(res, 200, { rows: await DB.leaderboard(limit) });
+      const period = urlObj.searchParams.get('period') === 'week' ? 'week' : 'all';
+      return json(res, 200, { rows: await DB.leaderboard(limit, period), period });
     }
     if (urlObj.pathname === '/api/profile' && req.method === 'GET') {
       return json(res, 200, await DB.profile(urlObj.searchParams.get('name') || ''));
@@ -504,8 +505,9 @@ wss.on('connection', (ws) => {
       }
       case 'getLeaderboard': {
         const myName = (room && ws.ctx.seat >= 0) ? room.seats[ws.ctx.seat].name : m.name;
-        Promise.all([DB.leaderboard(20), myName ? DB.profile(myName) : null])
-          .then(([rows, you]) => send(ws, { type: 'leaderboard', rows, you }))
+        const period = m.period === 'week' ? 'week' : 'all';
+        Promise.all([DB.leaderboard(20, period), myName ? DB.profile(myName) : null])
+          .then(([rows, you]) => send(ws, { type: 'leaderboard', rows, you, period }))
           .catch(() => {});
         break;
       }
