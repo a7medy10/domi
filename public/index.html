@@ -47,8 +47,14 @@ input:focus{border-color:#00ff88}
 .tile .half{flex:1;display:flex;align-items:center;justify-content:center;padding:4px}
 .tile:not(.board) .half:first-child{border-bottom:1px solid rgba(255,255,255,.2)}
 .pip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;height:100%;padding:2px}
-.pip{width:6px;height:6px;background:#e5e2e1;border-radius:50%}
+.pip{width:6px;height:6px;background:var(--pip,#e5e2e1);border-radius:50%}
 .playable .pip{background:#00ff88;box-shadow:0 0 4px rgba(0,255,136,.5)}
+body[data-tiles="neon"]{--pip:#00ff88}
+body[data-tiles="amber"]{--pip:#ffd24a}
+body[data-tiles="blue"]{--pip:#7cc8ff}
+body[data-tiles="pink"]{--pip:#ffb4ab}
+@keyframes slap{0%{transform:scale(1.8) rotate(8deg);opacity:0;filter:blur(2px)}70%{transform:scale(.94);opacity:1;filter:blur(0)}100%{transform:scale(1)}}
+.tile.board.slap{animation:slap .32s cubic-bezier(.18,.9,.32,1.2)}
 
 /* Header */
 header{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(19,19,19,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.1);padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
@@ -418,6 +424,7 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
       <div><div class="n b" id="round-b">0</div><div class="l">Team B</div></div>
     </div>
     <div id="round-ffa" class="hidden" style="margin:10px 0"></div>
+    <div id="round-hist"></div>
     <div class="sub" id="round-next">Next round starting…</div>
     <button class="btn-primary hidden" id="round-next-btn" style="width:100%" data-i18n="next_round" onclick="act('nextRound')">▶️ Next Round Now</button>
   </div>
@@ -434,6 +441,7 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
       <div><div class="n b" id="go-b">0</div><div class="l">Team B</div></div>
     </div>
     <div id="go-ffa" class="hidden" style="margin:10px 0"></div>
+    <div id="go-hist"></div>
     <button class="btn-primary hidden" id="go-rematch" style="width:100%;margin-bottom:8px" data-i18n="rematch" onclick="act('rematch')">🔄 Rematch</button>
     <button class="btn-ghost" style="width:100%;margin-bottom:8px" data-i18n="leaderboard" onclick="openLeaderboard()">🏆 Leaderboard</button>
     <button class="btn-ghost" style="width:100%" data-i18n="leave" onclick="leaveRoom()">Leave</button>
@@ -460,6 +468,8 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
     <h2>🎨 Table Theme</h2>
     <div class="sub" data-i18n="pick_felt">Pick your felt</div>
     <div id="theme-grid"></div>
+    <div class="sub" style="margin-top:14px">Tiles</div>
+    <div id="tile-grid"></div>
     <button class="btn-primary" style="width:100%;margin-top:14px" data-i18n="done" onclick="hide('theme-overlay')">Done</button>
   </div>
 </div>
@@ -555,10 +565,16 @@ const FELTS=[['neon','Neon'],['green','Classic'],['blue','Blue'],['wood','Wood']
 let myFelt = localStorage.getItem('domiFelt') || 'neon';
 function applyFelt(){ document.body.setAttribute('data-felt', myFelt); }
 function feltPreview(k){ return ({neon:'radial-gradient(circle,#0e1715,#0a100e)',green:'#114a32',blue:'#103a55',wood:'#43301d',purple:'#2a1a4a'})[k]||'#111'; }
+const TILES=[['white','White','#e5e2e1'],['neon','Neon','#00ff88'],['amber','Amber','#ffd24a'],['blue','Blue','#7cc8ff'],['pink','Pink','#ffb4ab']];
+let myTiles = localStorage.getItem('domiTiles') || 'white';
+function applyTiles(){ document.body.setAttribute('data-tiles', myTiles); }
 function openThemes(){ show('theme-overlay'); renderThemes(); }
 function renderThemes(){
   $('theme-grid').innerHTML = FELTS.map(([k,label])=>`<div class="theme-swatch ${k===myFelt?'sel':''}" data-felt="${k}" style="background:${feltPreview(k)}">${label}</div>`).join('');
   $('theme-grid').querySelectorAll('.theme-swatch').forEach(el=>el.onclick=()=>{ myFelt=el.dataset.felt; localStorage.setItem('domiFelt',myFelt); applyFelt(); renderThemes(); });
+  $('tile-grid').innerHTML = TILES.map(([k,label,c])=>`<div class="theme-swatch ${k===myTiles?'sel':''}" data-tiles="${k}" style="background:#15201c;color:${c}">
+      <span style="display:flex;gap:3px;align-items:center"><i style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></i><i style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></i></span>${label}</div>`).join('');
+  $('tile-grid').querySelectorAll('.theme-swatch').forEach(el=>el.onclick=()=>{ myTiles=el.dataset.tiles; localStorage.setItem('domiTiles',myTiles); applyTiles(); renderThemes(); });
 }
 // ---------- i18n (English / العربية) ----------
 const I18N = {
@@ -644,6 +660,7 @@ function handle(m){
   if (m.type==='leaderboard'){ renderLeaderboard(m.rows, m.you); }
   if (m.type==='chat'){ onChat(m); }
   if (m.type==='emote'){ onEmote(m); }
+  if (m.type==='kicked'){ localStorage.removeItem('domi'); alert('You were removed from the room by the host.'); location.reload(); }
 }
 // ---------- sound ----------
 function initAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} } }
@@ -662,7 +679,7 @@ function beep(type){
 function soundTriggers(m){
   const bl = m.board ? m.board.length : 0;
   if (m.phase==='playing' && bl>prevBoardLen) beep('play');
-  if (m.phase==='playing' && m.current===m.yourSeat && prevCurrent!==m.yourSeat){ beep('turn'); turnAlert(); }
+  if (m.phase==='playing' && m.current===m.yourSeat && prevCurrent!==m.yourSeat){ beep('turn'); turnAlert(); try{ navigator.vibrate && navigator.vibrate([90,40,90]); }catch{} }
   if (m.phase==='gameOver' && prevPhase!=='gameOver'){ const mine=m.seats[m.yourSeat]&&m.seats[m.yourSeat].team===m.winnerTeam; beep(mine?'win':'lose'); }
   prevBoardLen=bl; prevPhase=m.phase; prevCurrent=m.current;
 }
@@ -795,6 +812,8 @@ function renderLobby(){
       actBtn = s.isBot
         ? `<button class="act" onclick="act('removeBot',{seat:${s.seat}})">Remove bot</button>`
         : `<button class="act" onclick="act('addBot',{seat:${s.seat}})">Add bot</button>`;
+    } else if (isHost && s.occupied && s.seat!==S.hostSeat){
+      actBtn = `<button class="act" style="border-color:rgba(255,180,171,.5);color:#ffb4ab" onclick="act('kick',{seat:${s.seat}})">Kick</button>`;
     }
     list.innerHTML += `<div class="seat">
       <div class="av ${t}">${s.avatar||s.team}</div>
@@ -856,17 +875,29 @@ function renderOpponents(){
       <div class="opp-tag">${tag}</div>`;
   });
 }
+let pbLen=0, pbFirst='', pbLast='';
+function sigOf(t){ return t? (t.top+'-'+t.bottom) : ''; }
 function renderBoard(){
   const bc=$('board-chain');
   bc.innerHTML = S.board.map(boardTile).join('');
   if (S.ends){ $('board-ends').classList.remove('hidden'); $('end-l').textContent=S.ends.left; $('end-r').textContent=S.ends.right; }
   else $('board-ends').classList.add('hidden');
   $('bone').textContent=S.boneyardCount;
-  // Center when it fits; auto-scroll to newest tile when it overflows (unless mid-drag).
+  // Animate the tile that was just played (which end grew).
+  const len=S.board.length, first=sigOf(S.board[0]), last=sigOf(S.board[len-1]);
+  const grew = len>pbLen && pbLen>0;
+  const leftGrew = grew && first!==pbFirst;
+  if (grew){
+    const tiles=bc.querySelectorAll('.tile.board');
+    const idx = leftGrew ? 0 : len-1;
+    if (tiles[idx]) tiles[idx].classList.add('slap');
+  }
+  pbLen=len; pbFirst=first; pbLast=last;
+  // Center when it fits; auto-scroll to the end that grew when it overflows (unless mid-drag).
   requestAnimationFrame(()=>{
     const overflow = bc.scrollWidth > bc.clientWidth + 4;
     bc.style.justifyContent = overflow ? 'flex-start' : 'center';
-    if (overflow && !bc._dragging) bc.scrollLeft = bc.scrollWidth;
+    if (overflow && !bc._dragging) bc.scrollLeft = leftGrew ? 0 : bc.scrollWidth;
   });
 }
 function initBoardDrag(){
@@ -943,8 +974,16 @@ function standingsHTML(){
       <span class="fpts" style="font-family:monospace;font-weight:800;color:${i===0?'#00ff88':'#e5e2e1'}">${s.score}</span>
     </div>`).join('');
 }
+function histHTML(){
+  if(!S.roundHistory||!S.roundHistory.length) return '';
+  const items=S.roundHistory.map(h=> h.teams
+    ? `<span>R${h.round}: <b style="color:${h.scorer==='A'?'#00ff88':'#ffb4ab'}">${h.scorer}+${h.points}</b></span>`
+    : `<span>R${h.round}: <b style="color:#00ff88">${esc(h.winner)}+${h.points}</b></span>`).join('');
+  return `<div style="font-family:monospace;font-size:11px;color:rgba(255,255,255,.55);display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px 0">${items}</div>`;
+}
 function renderRoundEnd(){
   const r=S.lastRound; if(!r) return;
+  $('round-hist').innerHTML = histHTML();
   $('round-next-btn').classList.toggle('hidden', mySeat!==S.hostSeat);
   if (S.teams){
     $('round-teams').classList.remove('hidden'); $('round-ffa').classList.add('hidden');
@@ -959,6 +998,7 @@ function renderRoundEnd(){
   }
 }
 function renderGameOver(){
+  $('go-hist').innerHTML = histHTML();
   $('go-rematch').classList.toggle('hidden', mySeat!==S.hostSeat);
   if (S.teams){
     $('go-teams').classList.remove('hidden'); $('go-ffa').classList.add('hidden');
@@ -987,6 +1027,7 @@ window.addEventListener('load',()=>{
   initBoardDrag();
   renderAvatarPick();
   applyFelt();
+  applyTiles();
   applyLang();
   if ('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
   document.addEventListener('pointerdown', ()=>{

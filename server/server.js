@@ -114,6 +114,7 @@ function newRoom(code) {
     })),
     spectators: [],   // ws list of watchers
     isPublic: false,  // discoverable via quick-match
+    roundHistory: [], // per-round results for the current match
     game: null
   };
 }
@@ -174,6 +175,7 @@ function buildState(room, viewerSeat) {
     hand, hasMove, canDraw, canPass,
     lastRound: room.lastRound, winnerTeam: room.winnerTeam, winnerSeat: room.winnerSeat,
     spectators: room.spectators.length,
+    roundHistory: room.roundHistory,
     logs: room.logs.slice(-6)
   };
 }
@@ -318,6 +320,7 @@ function endRound(room, winnerSeat, reason) {
     const pts = E.teamHandScore(g, team === 'A' ? 'B' : 'A');
     g.scores[team] += pts;
     room.lastRound = { teams: true, team, points: pts, reason, a: g.scores.A, b: g.scores.B };
+    room.roundHistory.push({ round: room.roundNum, teams: true, scorer: team, points: pts, a: g.scores.A, b: g.scores.B });
     roomLog(room, `Round ${room.roundNum}: Team ${team} +${pts}`);
     if (g.scores.A >= room.target || g.scores.B >= room.target) { over = true; room.winnerTeam = g.scores.A >= room.target ? 'A' : 'B'; }
   } else {
@@ -325,6 +328,7 @@ function endRound(room, winnerSeat, reason) {
     g.scores[winnerSeat] += pts;
     const scores = {}; for (let i = 0; i < g.numPlayers; i++) scores[i] = g.scores[i];
     room.lastRound = { teams: false, winnerSeat, winnerName: g.names[winnerSeat], points: pts, reason, scores };
+    room.roundHistory.push({ round: room.roundNum, teams: false, winner: g.names[winnerSeat], points: pts });
     roomLog(room, `Round ${room.roundNum}: ${g.names[winnerSeat]} +${pts}`);
     let topSeat = -1, topScore = -1;
     for (let i = 0; i < g.numPlayers; i++) if (g.scores[i] > topScore) { topScore = g.scores[i]; topSeat = i; }
@@ -383,6 +387,7 @@ function startGame(room) {
   room.winnerTeam = null;
   room.winnerSeat = -1;
   room.lastRound = null;
+  room.roundHistory = [];
   room.phase = 'playing';
   E.startRound(room.game, -1);
   roomLog(room, `Game started (${room.teams ? '2v2 teams' : room.numPlayers + 'p free-for-all'}, ${room.draw ? 'draw' : 'block'})`);
@@ -476,6 +481,18 @@ wss.on('connection', (ws) => {
         if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can edit seats');
         const s = room.seats[m.seat];
         if (s && s.isBot) { s.isBot = false; s.name = `Seat ${m.seat + 1}`; broadcast(room); }
+        break;
+      }
+      case 'kick': {
+        if (!room || room.phase !== 'lobby') return;
+        if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can remove players');
+        if (m.seat === room.hostSeat) return;
+        const s = room.seats[m.seat];
+        if (!s || !s.occupied) return;
+        if (s.ws) { try { s.ws.send(JSON.stringify({ type: 'kicked' })); } catch {} ; s.ws.ctx = { code: null, seat: -1, token: null }; }
+        s.occupied = false; s.isBot = false; s.connected = false; s.token = null; s.ws = null;
+        s.name = `Seat ${m.seat + 1}`; s.avatar = '🙂';
+        broadcast(room);
         break;
       }
       case 'setTarget': {
