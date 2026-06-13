@@ -38,6 +38,38 @@ To let phones on your Wi-Fi join, use your PC's LAN IP, e.g. `http://192.168.1.2
 - Disconnect mid-game: your seat is played by the server until you return. Reload the
   page to auto-**rejoin** (token saved in `localStorage`).
 
+## Android app (Google Play)
+The site is a PWA (manifest + service worker + 192/512 icons), so you wrap the **live URL**
+into an Android package — a **Trusted Web Activity (TWA)**. You don't rebuild the game; the
+app loads `https://domi-dominoes.onrender.com` fullscreen.
+
+### Easiest — PWABuilder (no local tools)
+1. Go to **https://www.pwabuilder.com** → enter `https://domi-dominoes.onrender.com` → **Start**.
+2. **Package For Stores → Android → Download** (defaults are fine; package id `com.team101.dominos`).
+3. The zip contains a signed **`.aab`** (upload to Play), a test **`.apk`** (sideload), and
+   **`assetlinks.json`** plus the signing **SHA-256 fingerprint**.
+4. Put that fingerprint into `public/.well-known/assetlinks.json` (replace the placeholder),
+   commit + push, so `https://domi-dominoes.onrender.com/.well-known/assetlinks.json` is live —
+   this removes the browser URL bar in the app.
+5. Play Console → create app → upload the `.aab` → fill listing → submit.
+
+### Alternative — Bubblewrap CLI (local; needs JDK 17 + Android SDK)
+```bash
+npm i -g @bubblewrap/cli
+cd C:\domi\android
+bubblewrap init --manifest https://domi-dominoes.onrender.com/manifest.json   # or reuse twa-manifest.json here
+bubblewrap build      # produces app-release-signed.apk + .aab; prints the SHA-256 for assetlinks
+```
+`android/twa-manifest.json` is pre-filled (package `com.team101.dominos`, host, icons, colors).
+
+### Alternative — Capacitor (full WebView project, offline-capable)
+Use if you want to bundle assets or add native plugins; heavier setup (Android Studio).
+
+> **Notes:** A Play listing needs a Play Console account (one-time $25), an app icon (use
+> `icon-512.png`), a feature graphic, and screenshots. Bump `appVersionCode` in
+> `android/twa-manifest.json` for each new upload. The web app updates instantly on deploy —
+> only ship a new APK/AAB when you change icons/package settings.
+
 ## Deploying
 > **Vercel note:** Vercel's serverless functions cannot hold persistent WebSocket
 > connections, so the **game server cannot run on Vercel**. Host the Node server on a
