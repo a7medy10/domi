@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Team 101 Dominoes</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e5e2e1;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.no-scrollbar::-webkit-scrollbar{display:none}
+.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+
+/* Animations */
+@keyframes slap{0%{transform:scale(2) rotate(15deg);opacity:0;filter:blur(4px)}70%{transform:scale(.95) rotate(-2deg);opacity:1;filter:blur(0)}100%{transform:scale(1) rotate(var(--r,0deg))}}
+@keyframes playL{0%{transform:translateX(0) scale(1);opacity:1}100%{transform:translateX(60px) scale(.6);opacity:0}}
+@keyframes playR{0%{transform:translateX(0) scale(1);opacity:1}100%{transform:translateX(-60px) scale(.6);opacity:0}}
+@keyframes playUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-100px) scale(.6);opacity:0}}
+@keyframes float{0%,100%{transform:translateY(-18px)}50%{transform:translateY(-26px)}}
+@keyframes pulse{0%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes draw{0%{transform:translateX(-40px) rotate(-20deg);opacity:0}100%{transform:translateX(0) rotate(0deg);opacity:1}}
+@keyframes slideUp{0%{transform:translateY(15px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes scoreBump{0%{transform:scale(1)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,136,.3)}50%{box-shadow:0 0 40px rgba(0,255,136,.6)}}
+@keyframes winPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+.a-slap{animation:slap .4s cubic-bezier(.175,.885,.32,1.275) forwards}
+.a-playL{animation:playL .35s ease forwards;pointer-events:none}
+.a-playR{animation:playR .35s ease forwards;pointer-events:none}
+.a-playUp{animation:playUp .35s ease forwards;pointer-events:none}
+.a-float{animation:float 2.5s ease-in-out infinite}
+.a-pulse{animation:pulse 2s ease-in-out infinite}
+.a-shake{animation:shake .3s ease-in-out}
+.a-draw{animation:draw .4s ease forwards}
+.a-slide{animation:slideUp .3s ease forwards}
+.a-bump{animation:scoreBump .5s ease}
+.a-glow{animation:glow 2s ease-in-out infinite}
+.a-win{animation:winPulse 1s ease-in-out infinite}
+
+/* Components */
+.glass{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.btn-primary{background:#00ff88;color:#003919;font-weight:700;border-radius:16px;border:none;padding:12px 24px;cursor:pointer;transition:all .2s;box-shadow:0 0 15px rgba(0,255,136,.4);font-size:14px;display:flex;align-items:center;gap:6px}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 0 25px rgba(0,255,136,.6)}
+.btn-primary:active:not(:disabled){transform:scale(.95)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid rgba(0,255,136,.4);color:#00ff88;border-radius:16px;padding:12px 24px;cursor:pointer;transition:all .2s;font-size:14px;display:flex;align-items:center;gap:6px}
+.btn-ghost:hover:not(:disabled){background:rgba(0,255,136,.1);border-color:#00ff88}
+.btn-ghost:disabled{opacity:.3;cursor:not-allowed}
+
+/* Domino tile */
+.tile{width:52px;height:88px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;display:flex;flex-direction:column;flex-shrink:0;cursor:pointer;transition:all .25s ease;position:relative}
+.tile:hover:not(.disabled):not(.board){transform:translateY(-5px) scale(1.02);border-color:rgba(0,255,136,.4)}
+.tile.disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.tile.playable{border:2px solid #00ff88;box-shadow:0 0 15px rgba(0,255,136,.2),0 6px 20px rgba(0,255,136,.1);animation:float 2.5s ease-in-out infinite}
+.tile.playable:hover{transform:translateY(-8px) scale(1.03);box-shadow:0 0 25px rgba(0,255,136,.35)}
+.tile.board{width:60px;height:34px;flex-direction:row;cursor:default}
+.tile.board .half{border-bottom:none;border-right:1px solid rgba(255,255,255,.2)}
+.tile.board .half:last-child{border-right:none}
+/* Doubles sit perpendicular on the board, styled like a hand tile */
+.tile.board.dbl{width:38px;height:64px;flex-direction:column;border-color:rgba(0,255,136,.35);box-shadow:0 0 10px rgba(0,255,136,.12)}
+.tile.board.dbl .half{border-right:none}
+.tile.board.dbl .half:first-child{border-bottom:1px solid rgba(255,255,255,.2)}
+.tile .half{flex:1;display:flex;align-items:center;justify-content:center;padding:4px}
+.tile .half:first-child{border-bottom:1px solid rgba(255,255,255,.2)}
+
+/* Pips */
+.pip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;height:100%;padding:2px}
+.pip{width:6px;height:6px;background:#e5e2e1;border-radius:50%}
+.playable .pip{background:#00ff88;box-shadow:0 0 4px rgba(0,255,136,.5)}
+
+/* Layout */
+#app{height:100dvh;display:flex;flex-direction:column;position:relative}
+#table-bg{position:absolute;inset:0;background:#0a0a0a;z-index:0}
+#table-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,255,136,.03) 0%,transparent 70%)}
+
+/* Header */
+header{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(19,19,19,.8);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.1);padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:18px;font-weight:800;color:#00ff88;letter-spacing:-.5px}
+header .icons{display:flex;gap:8px}
+header .icon-btn{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.08);border:none;color:#e5e2e1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+header .icon-btn:hover{background:rgba(0,255,136,.15);color:#00ff88}
+
+/* Score bar */
+#score-bar{position:fixed;top:56px;left:0;right:0;z-index:40;padding:8px 20px}
+#score-bar .glass{padding:12px}
+#score-bar .team-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+#score-bar .team-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+#score-bar .team-score{font-size:20px;font-weight:800;font-family:monospace}
+#score-bar .bar{height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;margin-bottom:4px}
+#score-bar .bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+#score-bar .bar-a{background:#00ff88}
+#score-bar .bar-b{background:#ffb4ab}
+#score-bar .meta{text-align:center;font-size:10px;color:rgba(255,255,255,.4);font-family:monospace;margin-top:4px}
+
+/* Opponents */
+.opp{position:fixed;z-index:10;display:flex;flex-direction:column;align-items:center;gap:4px}
+.opp-top{top:140px;left:50%;transform:translateX(-50%)}
+.opp-left{left:16px;top:50%;transform:translateY(-50%);flex-direction:row!important}
+.opp-right{right:16px;top:50%;transform:translateY(-50%);flex-direction:row-reverse!important}
+.opp-avatar{width:48px;height:48px;border-radius:50%;padding:2px;position:relative}
+.opp-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.opp-avatar.team-a{border:2px solid #00ff88;box-shadow:0 0 10px rgba(0,255,136,.3)}
+.opp-avatar.team-b{border:2px solid #ffb4ab;box-shadow:0 0 10px rgba(255,180,171,.3)}
+.opp-badge{position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:monospace}
+.opp-badge.a{background:rgba(0,255,136,.2);border:1.5px solid #00ff88;color:#00ff88}
+.opp-badge.b{background:rgba(255,180,171,.2);border:1.5px solid #ffb4ab;color:#ffb4ab}
+.opp-count{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:#2a2a2a;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#00ff88}
+.opp-hand{display:flex;gap:2px}
+.opp-hand .back{width:14px;height:22px;background:#2a2a2a;border:1px solid rgba(255,255,255,.1);border-radius:3px}
+.opp-name{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.5)}
+.opp-thinking{position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:#00ff88;animation:spin .7s linear infinite}
+.opp-thinking::before{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;border-bottom-color:rgba(0,255,136,.3);animation:spin 1.4s linear infinite reverse}
+.opp-thinking-badge{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:rgba(0,255,136,.15);border:1px solid rgba(0,255,136,.4);border-radius:999px;padding:1px 6px;font-size:8px;font-family:monospace;color:#00ff88;white-space:nowrap;z-index:20}
+
+/* Board */
+#board-area{position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);z-index:10;height:200px;display:flex;align-items:center;justify-content:center}
+#board-chain{display:flex;gap:4px;align-items:center;width:100%;max-width:96vw;overflow-x:auto;padding:24px 24px;cursor:grab;scroll-behavior:smooth;-ms-overflow-style:none;scrollbar-width:none;min-height:96px;justify-content:center}
+#board-chain::-webkit-scrollbar{display:none}
+#board-chain.grabbing{cursor:grabbing;scroll-behavior:auto}
+#board-chain.grabbing .tile{pointer-events:none}
+#board-empty{color:rgba(255,255,255,.25);font-family:monospace;font-size:12px;text-transform:uppercase;letter-spacing:2px}
+#board-hint{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:9px;font-family:monospace;color:rgba(255,255,255,.3);letter-spacing:1px;pointer-events:none}
+#board-ends{position:absolute;top:-40px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center}
+.end-indicator{display:flex;flex-direction:column;align-items:center;gap:2px;opacity:0;transition:opacity .3s}
+.end-indicator.show{opacity:1}
+.end-indicator .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.end-indicator .value{width:28px;height:28px;border-radius:50%;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#00ff88}
+
+/* Game log */
+#game-log{position:fixed;top:220px;left:50%;transform:translateX(-50%);z-index:20;max-width:300px;width:100%;pointer-events:none}
+#game-log .msg{font-family:monospace;font-size:11px;padding:6px 12px;border-radius:999px;background:rgba(42,42,42,.8);border:1px solid rgba(255,255,255,.1);margin-bottom:4px;text-align:center;backdrop-filter:blur(8px)}
+#game-log .msg.success{color:#00ff88}
+#game-log .msg.error{color:#ffb4ab}
+#game-log .msg.info{color:rgba(255,255,255,.6)}
+
+/* Controls */
+#controls{position:fixed;bottom:180px;left:0;right:0;padding:0 20px;display:flex;justify-content:space-between;align-items:flex-end;z-index:20}
+#boneyard{display:flex;flex-direction:column;gap:4px}
+#boneyard .label{font-size:9px;font-family:monospace;text-transform:uppercase;color:rgba(255,255,255,.4);letter-spacing:1px}
+#boneyard-pile{display:flex;gap:-4px}
+#boneyard-pile .card{width:24px;height:36px;background:#2a2a2a;border:1px solid rgba(255,255,255,.1);border-radius:4px;position:relative}
+#boneyard-pile .card:nth-child(1){transform:rotate(-12deg);z-index:3}
+#boneyard-pile .card:nth-child(2){transform:rotate(3deg);margin-left:-8px;z-index:2}
+#boneyard-pile .card:nth-child(3){transform:rotate(12deg);margin-left:-8px;z-index:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:monospace;color:rgba(255,255,255,.6)}
+#action-btns{display:flex;gap:8px}
+
+/* Player hand */
+#player-area{position:fixed;bottom:0;left:0;right:0;z-index:30}
+#player-panel{background:rgba(28,27,27,.95);backdrop-filter:blur(40px);border-top:1px solid rgba(255,255,255,.1);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(255,255,255,.1);border-radius:40px 40px 0 0;padding:16px 20px 20px;box-shadow:0 -20px 50px rgba(0,0,0,.5)}
+#player-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+#player-info{display:flex;align-items:center;gap:10px}
+#player-avatar{width:40px;height:40px;border-radius:50%;border:2px solid #00ff88;padding:2px;position:relative;box-shadow:0 0 15px rgba(0,255,136,.3);animation:pulse 2s ease-in-out infinite}
+#player-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+#player-avatar .badge{position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:monospace;background:rgba(0,255,136,.2);border:1.5px solid #00ff88;color:#00ff88}
+#player-turn{font-size:14px;font-weight:700;color:#00ff88;text-transform:uppercase;letter-spacing:1px}
+#player-timer{height:3px;width:100px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:4px}
+#player-timer .fill{height:100%;background:#00ff88;border-radius:2px;transition:width .1s linear}
+#player-timer .fill.warning{background:#ffb4ab}
+#player-icons{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.btn-primary.compact,.btn-ghost.compact{padding:8px 12px;font-size:12px;border-radius:12px;box-shadow:none}
+.btn-primary.compact{box-shadow:0 0 12px rgba(0,255,136,.35)}
+#player-icons .icon-btn{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+#player-icons .icon-btn:hover{color:#00ff88;background:rgba(0,255,136,.1)}
+#hand{display:flex;justify-content:center;gap:6px;overflow-x:auto;padding:8px 0;min-height:110px;align-items:flex-end}
+#hand-meta{display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11px;color:rgba(255,255,255,.4);font-family:monospace}
+
+/* Modals */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(10,10,10,.85);backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-content{background:rgba(42,42,42,.95);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px;max-width:360px;width:100%;max-height:85vh;overflow-y:auto}
+.modal-content h2{font-size:20px;font-weight:700;color:#00ff88;margin-bottom:16px;text-align:center}
+.modal-content h3{font-size:14px;font-weight:700;color:#00ff88;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.modal-content p{font-size:13px;color:rgba(255,255,255,.6);line-height:1.5}
+.modal-content .section{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:12px;margin-bottom:12px}
+.modal-content .close-btn{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-content .close-btn:hover{color:#00ff88}
+.modal-content .row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:6px}
+.modal-content .row .name{display:flex;align-items:center;gap:8px;font-size:13px}
+.modal-content .row .name img{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.modal-content select{background:#1c1b1b;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:4px 8px;color:#e5e2e1;font-size:13px;cursor:pointer}
+.modal-content .preview{text-align:center;font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;padding:8px;background:rgba(255,255,255,.02);border-radius:8px}
+.modal-content .btn-row{display:flex;gap:8px;margin-top:12px}
+.modal-content .btn-row button{flex:1}
+.modal-content .option-row{display:flex;gap:8px;margin-top:8px}
+.modal-content .option-btn{flex:1;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;transition:all .2s}
+.modal-content .option-btn.active{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.08)}
+
+/* Game over */
+#game-over .icon{width:64px;height:64px;border-radius:50%;background:rgba(0,255,136,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;animation:glow 2s ease-in-out infinite}
+#game-over .icon span{font-size:32px;color:#00ff88}
+#game-over .scores{display:flex;justify-content:center;gap:32px;margin:16px 0}
+#game-over .score{text-align:center}
+#game-over .score .num{font-size:28px;font-weight:800;font-family:monospace}
+#game-over .score .num.a{color:#00ff88}
+#game-over .score .num.b{color:#ffb4ab}
+#game-over .score .label{font-size:11px;color:rgba(255,255,255,.4);margin-top:4px}
+
+/* Round modal */
+#round-end .winner-text{text-align:center;font-size:13px;color:rgba(255,255,255,.6);margin:12px 0}
+#round-end .points{font-family:monospace;font-size:14px;font-weight:600}
+#round-end .points.a{color:#00ff88}
+#round-end .points.b{color:#ffb4ab}
+
+/* Turn countdown */
+#timer-text{font-family:monospace;font-size:13px;font-weight:700;color:#00ff88}
+#timer-text.warning{color:#ffb4ab;animation:pulse 1s ease-in-out infinite}
+
+/* Leaderboard */
+.lb-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:6px}
+.lb-row.me{border:1px solid rgba(0,255,136,.5);background:rgba(0,255,136,.08)}
+.lb-rank{font-family:monospace;font-weight:800;width:24px;text-align:center;color:rgba(255,255,255,.6)}
+.lb-name{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.lb-pts{font-family:monospace;font-weight:700;color:#00ff88;font-size:13px}
+.lb-w{font-family:monospace;font-size:11px;color:rgba(255,255,255,.45);width:42px;text-align:right}
+.tier{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:999px;border:1px solid currentColor}
+.tier.Bronze{color:#cd7f32}.tier.Silver{color:#c0c7d0}.tier.Gold{color:#ffd24a}.tier.Platinum{color:#5ff5d6}.tier.Diamond{color:#7cc8ff}
+.lb-av{font-size:16px;width:20px;text-align:center}
+#lb-avatar-pick{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+#lb-avatar-pick .av{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#lb-avatar-pick .av.sel{border-color:#00ff88;background:rgba(0,255,136,.12)}
+
+/* Mobile / small-screen tuning */
+@media (max-width:380px){
+  header{padding:10px 14px}
+  header h1{font-size:16px}
+  .opp-left{left:6px}
+  .opp-right{right:6px}
+  .opp-avatar{width:40px;height:40px}
+  #board-chain{max-width:92vw;padding:0 8px}
+  .tile{width:46px;height:78px}
+  #controls{padding:0 12px;bottom:172px}
+  .btn-primary,.btn-ghost{padding:10px 16px;font-size:13px}
+  #player-panel{padding:12px 14px 16px;border-radius:28px 28px 0 0}
+  #hand{gap:4px}
+}
+@media (max-height:680px){
+  .opp-top{top:120px}
+  #game-log{top:188px}
+  #controls{bottom:160px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="table-bg"></div>
+
+  <!-- Header -->
+  <header>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;border:2px solid #00ff88;overflow:hidden">
+        <img src="https://i.pravatar.cc/150?img=11" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,.4);font-family:monospace;text-transform:uppercase;letter-spacing:1px">Team 101 Dominoes</div>
+        <h1>Dominos Elite</h1>
+      </div>
+    </div>
+    <div class="icons">
+      <button class="icon-btn" onclick="toggleSound()" id="sound-btn">🔊</button>
+      <button class="icon-btn" onclick="showLeaderboard()" title="Leaderboard">🏆</button>
+      <button class="icon-btn" onclick="showSettings()">⚙️</button>
+      <button class="icon-btn" onclick="showRules()">❓</button>
+    </div>
+  </header>
+
+  <!-- Score Bar -->
+  <div id="score-bar">
+    <div class="glass">
+      <div class="team-row">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#00ff88"></div>
+          <span class="team-name" style="color:#00ff88">Team A</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.3)">You + Alpha</span>
+        </div>
+        <span class="team-score" id="score-a" style="color:#00ff88">0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-a" id="bar-a" style="width:0%"></div></div>
+      <div class="team-row">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#ffb4ab"></div>
+          <span class="team-name" style="color:#ffb4ab">Team B</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.3)">Beta + Gamma</span>
+        </div>
+        <span class="team-score" id="score-b" style="color:#ffb4ab">0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-b" id="bar-b" style="width:0%"></div></div>
+      <div class="meta">First to <span id="target-display">101</span> wins | Round <span id="round-display">1</span></div>
+    </div>
+  </div>
+
+  <!-- Opponents -->
+  <div class="opp opp-top" id="opp-1">
+    <div style="position:relative" id="avatar-wrap-1">
+      <div class="opp-avatar team-a" id="avatar-1"><img src="https://i.pravatar.cc/150?img=68"></div>
+      <div class="opp-badge a">A</div>
+      <div class="opp-count" id="count-1">7</div>
+    </div>
+    <div class="opp-hand" id="hand-1"></div>
+    <div class="opp-name" style="color:#00ff88">Bot Alpha (Ally)</div>
+  </div>
+
+  <div class="opp opp-left" id="opp-2">
+    <div style="position:relative" id="avatar-wrap-2">
+      <div class="opp-avatar team-b" id="avatar-2"><img src="https://i.pravatar.cc/150?img=59"></div>
+      <div class="opp-badge b">B</div>
+      <div class="opp-count" id="count-2">7</div>
+    </div>
+    <div class="opp-hand" id="hand-2"></div>
+    <div class="opp-name" style="color:#ffb4ab">Bot Beta</div>
+  </div>
+
+  <div class="opp opp-right" id="opp-3">
+    <div style="position:relative" id="avatar-wrap-3">
+      <div class="opp-avatar team-b" id="avatar-3"><img src="https://i.pravatar.cc/150?img=33"></div>
+      <div class="opp-badge b">B</div>
+      <div class="opp-count" id="count-3">7</div>
+    </div>
+    <div class="opp-hand" id="hand-3"></div>
+    <div class="opp-name" style="color:#ffb4ab">Bot Gamma</div>
+  </div>
+
+  <!-- Game Log -->
+  <div id="game-log"><div id="log-msgs"></div></div>
+
+  <!-- Board -->
+  <div id="board-area">
+    <div id="board-ends">
+      <div class="end-indicator" id="end-left">
+        <span class="label">Left</span>
+        <div class="value" id="left-val">-</div>
+      </div>
+      <div style="width:1px;height:24px;background:rgba(255,255,255,.1)"></div>
+      <div class="end-indicator" id="end-right">
+        <span class="label">Right</span>
+        <div class="value" id="right-val">-</div>
+      </div>
+    </div>
+    <div id="board-chain"></div>
+    <div id="board-hint"></div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div id="boneyard">
+      <div class="label">Boneyard</div>
+      <div id="boneyard-pile">
+        <div class="card"></div>
+        <div class="card"></div>
+        <div class="card" id="boneyard-count">14</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Hand -->
+  <div id="player-area">
+    <div id="player-panel">
+      <div id="player-header">
+        <div id="player-info">
+          <div id="player-avatar">
+            <img src="https://i.pravatar.cc/150?img=11">
+            <div class="badge">A</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div id="player-turn">Your Turn</div>
+              <div id="timer-text">3:00</div>
+            </div>
+            <div id="player-timer"><div class="fill" id="timer-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div id="player-icons">
+          <button class="btn-ghost compact" id="pass-btn" onclick="passTurn()" disabled><span>⏭️</span> PASS</button>
+          <button class="btn-primary compact" id="draw-btn" onclick="drawTile()"><span>🎴</span> DRAW</button>
+          <button class="icon-btn" onclick="showSettings()">⚙️</button>
+          <button class="icon-btn" onclick="showRules()">❓</button>
+        </div>
+      </div>
+      <div id="hand"></div>
+      <div id="hand-meta">
+        <span id="hand-count">Hand: 0 tiles</span>
+        <span>|</span>
+        <span id="hand-score">Hand Score: 0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-content" style="position:relative">
+    <h2>Game Settings</h2>
+    <div class="section">
+      <h3>⚡ Quick Actions</h3>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="rematch()" style="flex:1"><span>🔄</span> Rematch</button>
+        <button class="btn-ghost" onclick="swapTeams()" style="flex:1"><span>🔀</span> Swap Teams</button>
+      </div>
+    </div>
+    <div class="section">
+      <h3>👥 Teams</h3>
+      <div id="team-rows"></div>
+      <div class="preview" id="team-preview"></div>
+    </div>
+    <div class="section">
+      <h3>🎯 Target Score</h3>
+      <div class="option-row">
+        <button class="option-btn" data-target="51" onclick="setTarget(51)">51</button>
+        <button class="option-btn active" data-target="101" onclick="setTarget(101)">101</button>
+        <button class="option-btn" data-target="201" onclick="setTarget(201)">201</button>
+      </div>
+    </div>
+    <button class="btn-primary" style="width:100%;margin-top:8px" onclick="applySettings()">
+      <span>✅</span> Apply &amp; Restart
+    </button>
+    <button class="close-btn" onclick="closeSettings()">✕</button>
+  </div>
+</div>
+
+<!-- Rules Modal -->
+<div class="modal-overlay" id="rules-modal">
+  <div class="modal-content" style="position:relative">
+    <h2>How to Play</h2>
+    <div class="section">
+      <h3>👥 Teams</h3>
+      <p><strong style="color:#00ff88">Team A:</strong> You + Bot Alpha<br><strong style="color:#ffb4ab">Team B:</strong> Bot Beta + Bot Gamma</p>
+    </div>
+    <div class="section">
+      <h3>🎯 Goal</h3>
+      <p>First team to reach <strong>101 points</strong> wins. Play multiple rounds.</p>
+    </div>
+    <div class="section">
+      <h3>📊 Scoring</h3>
+      <p>When a player empties their hand, their team gets the <strong>sum of all opponent hand pips</strong>.</p>
+    </div>
+    <div class="section">
+      <h3>🎲 Both Ends Open</h3>
+      <p><strong>Both ends</strong> of the board are always playable — including the opening tile. Play on either end you match. Doubles are placed crossways but don't lock a side.</p>
+    </div>
+    <div class="section">
+      <h3>🔄 Turns</h3>
+      <p>Match board ends, draw if stuck, pass if boneyard empty. 75s timer.</p>
+    </div>
+    <button class="btn-primary" style="width:100%" onclick="closeRules()">Got it</button>
+    <button class="close-btn" onclick="closeRules()">✕</button>
+  </div>
+</div>
+
+<!-- Round End Modal -->
+<div class="modal-overlay" id="round-modal">
+  <div class="modal-content" id="round-end">
+    <h2 id="round-title">Round Complete!</h2>
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700;color:#00ff88">Team A</span>
+        <span class="points a" id="round-points-a">+0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-a" id="round-bar-a" style="width:0%"></div></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Total: <span id="round-total-a">0</span> / <span class="target-num">101</span></div>
+    </div>
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:700;color:#ffb4ab">Team B</span>
+        <span class="points b" id="round-points-b">+0</span>
+      </div>
+      <div class="bar"><div class="bar-fill bar-b" id="round-bar-b" style="width:0%"></div></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Total: <span id="round-total-b">0</span> / <span class="target-num">101</span></div>
+    </div>
+    <div class="winner-text" id="round-winner"></div>
+    <button class="btn-primary" style="width:100%" onclick="nextRound()">
+      <span>▶️</span> Next Round
+    </button>
+  </div>
+</div>
+
+<!-- Game Over Modal -->
+<div class="modal-overlay" id="game-over-modal">
+  <div class="modal-content" id="game-over">
+    <div class="icon"><span id="game-over-icon">🏆</span></div>
+    <h2 id="game-over-title">Team Victory!</h2>
+    <p style="text-align:center;color:rgba(255,255,255,.6);font-size:13px;margin-bottom:16px" id="game-over-msg">Team A reached 101 points!</p>
+    <div class="scores">
+      <div class="score">
+        <div class="num a" id="final-a">0</div>
+        <div class="label">Team A</div>
+      </div>
+      <div class="score">
+        <div class="num b" id="final-b">0</div>
+        <div class="label">Team B</div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn-primary" onclick="rematch()" style="flex:1"><span>🔄</span> Rematch</button>
+      <button class="btn-ghost" onclick="showSettings()" style="flex:1"><span>⚙️</span> Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leaderboard Modal -->
+<div class="modal-overlay" id="leaderboard-modal">
+  <div class="modal-content" style="position:relative">
+    <h2>🏆 Leaderboard</h2>
+    <div class="section">
+      <h3>🧑 Your profile</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="lb-name-input" maxlength="24" placeholder="Your name"
+          style="flex:1;background:#1c1b1b;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 10px;color:#e5e2e1;font-size:14px;outline:none">
+        <button class="btn-ghost" style="padding:8px 12px" onclick="saveLbName()">Save</button>
+      </div>
+      <div id="lb-avatar-pick"></div>
+      <div class="preview" id="lb-you" style="margin-top:8px">—</div>
+    </div>
+    <div class="section">
+      <h3>🌐 Top players</h3>
+      <div id="lb-rows"><div style="text-align:center;color:rgba(255,255,255,.4);padding:12px">loading…</div></div>
+    </div>
+    <button class="btn-primary" style="width:100%" onclick="closeLeaderboard()">Close</button>
+    <button class="close-btn" onclick="closeLeaderboard()">✕</button>
+  </div>
+</div>
+
+<!-- Side Chooser Modal -->
+<div class="modal-overlay" id="side-modal">
+  <div class="modal-content" style="text-align:center">
+    <span style="font-size:40px;display:block;margin-bottom:12px">⚖️</span>
+    <h3 style="font-size:16px;color:#00ff88;margin-bottom:8px">Choose Side</h3>
+    <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:16px">This tile matches both ends</p>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="chooseSide('left')" style="flex:1"><span>⬅️</span> Left</button>
+      <button class="btn-primary" onclick="chooseSide('right')" style="flex:1"><span>➡️</span> Right</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ==================== GAME STATE ====================
+const TURN_SECONDS = 180; // 3 minutes per turn
+const GS = {
+  boneyard: [], board: [],
+  players: [
+    {id:0,name:'You',hand:[],isBot:false,team:'A',avatar:'https://i.pravatar.cc/150?img=11'},
+    {id:1,name:'Bot Alpha',hand:[],isBot:true,team:'A',avatar:'https://i.pravatar.cc/150?img=68'},
+    {id:2,name:'Bot Beta',hand:[],isBot:true,team:'B',avatar:'https://i.pravatar.cc/150?img=59'},
+    {id:3,name:'Bot Gamma',hand:[],isBot:true,team:'B',avatar:'https://i.pravatar.cc/150?img=33'}
+  ],
+  scores: {A:0, B:0},
+  target: 101,
+  current: 0,
+  timer: TURN_SECONDS,
+  timerId: null,
+  sound: true,
+  roundActive: true,
+  roundNum: 1,
+  lastWinner: null,
+  passes: 0,
+  pending: null,
+  audioCtx: null
+};
+
+// ==================== AUDIO ====================
+function initAudio() {
+  if (!GS.audioCtx) GS.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playSound(type) {
+  if (!GS.sound || !GS.audioCtx) return;
+  const o = GS.audioCtx.createOscillator(), g = GS.audioCtx.createGain();
+  o.connect(g); g.connect(GS.audioCtx.destination);
+  const now = GS.audioCtx.currentTime;
+  switch(type) {
+    case 'play': o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(1200,now+.1); g.gain.setValueAtTime(.15,now); g.gain.exponentialRampToValueAtTime(.01,now+.2); o.start(); o.stop(now+.2); break;
+    case 'draw': o.frequency.setValueAtTime(400,now); o.frequency.exponentialRampToValueAtTime(600,now+.15); g.gain.setValueAtTime(.1,now); g.gain.exponentialRampToValueAtTime(.01,now+.15); o.start(); o.stop(now+.15); break;
+    case 'win': o.frequency.setValueAtTime(523,now); o.frequency.setValueAtTime(659,now+.1); o.frequency.setValueAtTime(784,now+.2); o.frequency.setValueAtTime(1047,now+.3); g.gain.setValueAtTime(.2,now); g.gain.exponentialRampToValueAtTime(.01,now+.5); o.start(); o.stop(now+.5); break;
+    case 'pass': o.frequency.setValueAtTime(300,now); o.frequency.exponentialRampToValueAtTime(200,now+.2); g.gain.setValueAtTime(.1,now); g.gain.exponentialRampToValueAtTime(.01,now+.2); o.start(); o.stop(now+.2); break;
+    case 'error': o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(.1,now); g.gain.exponentialRampToValueAtTime(.01,now+.15); o.start(); o.stop(now+.15); break;
+    case 'score': o.frequency.setValueAtTime(880,now); o.frequency.setValueAtTime(1100,now+.1); g.gain.setValueAtTime(.15,now); g.gain.exponentialRampToValueAtTime(.01,now+.2); o.start(); o.stop(now+.2); break;
+  }
+}
+function toggleSound() {
+  GS.sound = !GS.sound;
+  document.getElementById('sound-btn').textContent = GS.sound ? '🔊' : '🔇';
+  if (GS.sound) initAudio();
+}
+
+// ==================== DECK ====================
+function createDeck() {
+  const d = [];
+  for (let i=0; i<=6; i++) for (let j=i; j<=6; j++) d.push({top:i, bottom:j, id: `${i}-${j}-${Math.random().toString(36).slice(2,8)}`});
+  for (let i=d.length-1; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+
+// ==================== PIPS ====================
+const PIP_POS = {0:[],1:[[1,1]],2:[[0,0],[2,2]],3:[[0,0],[1,1],[2,2]],4:[[0,0],[0,2],[2,0],[2,2]],5:[[0,0],[0,2],[1,1],[2,0],[2,2]],6:[[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]]};
+function renderPips(n, active) {
+  const pos = PIP_POS[n] || [];
+  if (!pos.length) return '<div style="width:100%;height:100%"></div>';
+  let h = '<div class="pip-grid">';
+  for (let r=0; r<3; r++) for (let c=0; c<3; c++) h += pos.some(p=>p[0]===r&&p[1]===c) ? `<div class="pip${active?'':'" style="background:#e5e2e1'}"></div>` : '<div></div>';
+  return h + '</div>';
+}
+function renderTile(tile, vertical, playable, active, board) {
+  // Board tiles get sizing/layout from CSS (.board / .board.dbl); hand tiles use inline sizing.
+  if (board) {
+    const dbl = tile.top === tile.bottom;
+    return `<div class="tile board${dbl?' dbl':''}" data-top="${tile.top}" data-bottom="${tile.bottom}">
+      <div class="half">${renderPips(tile.top, false)}</div>
+      <div class="half">${renderPips(tile.bottom, false)}</div>
+    </div>`;
+  }
+  const sz = vertical ? 'width:52px;height:88px' : 'width:60px;height:34px;flex-direction:row';
+  const cls = active ? 'tile playable a-float' : (playable ? 'tile' : 'tile disabled');
+  const bdr = active ? 'border:2px solid #00ff88;box-shadow:0 0 15px rgba(0,255,136,.2)' : '';
+  const halfBdr = vertical ? 'border-bottom:1px solid rgba(255,255,255,.2)' : 'border-right:1px solid rgba(255,255,255,.2)';
+  return `<div class="${cls}" style="${sz};${bdr}" data-id="${tile.id}" data-top="${tile.top}" data-bottom="${tile.bottom}">
+    <div class="half" style="${vertical?halfBdr:''}">${renderPips(tile.top, active)}</div>
+    <div class="half">${renderPips(tile.bottom, active)}</div>
+  </div>`;
+}
+
+// ==================== BOARD LOGIC ====================
+function getEnds() {
+  if (!GS.board.length) return null;
+  if (GS.board.length === 1) return {left: GS.board[0].tile.top, right: GS.board[0].tile.bottom};
+  return {left: GS.board[0].exTop, right: GS.board[GS.board.length-1].exBottom};
+}
+// Both ends of the board stay open: a player may always play on either end that
+// matches, including the opening tile. Doubles are placed crossways for looks only
+// (no forced "spinner" side). Kept as a stub so call sites stay simple.
+function getSpinner() {
+  return null;
+}
+function canPlay(tile, ends) {
+  if (!ends) return true;
+  const sp = getSpinner();
+  if (sp) return tile.top === sp.num || tile.bottom === sp.num;
+  return tile.top===ends.left || tile.bottom===ends.left || tile.top===ends.right || tile.bottom===ends.right;
+}
+function getSides(tile, ends) {
+  if (!ends) return ['right'];
+  const sp = getSpinner();
+  if (sp) {
+    const s = [];
+    if (tile.top===sp.num || tile.bottom===sp.num) {
+      if (sp.needsLeft) s.push('left');
+      if (sp.needsRight) s.push('right');
+    }
+    return s;
+  }
+  const s = [];
+  if (tile.top===ends.left || tile.bottom===ends.left) s.push('left');
+  if (tile.top===ends.right || tile.bottom===ends.right) s.push('right');
+  return s;
+}
+function orient(tile, side, ends) {
+  if (!ends) return {...tile, dTop:tile.top, dBottom:tile.bottom, exTop:tile.top, exBottom:tile.bottom};
+  const end = side==='left' ? ends.left : ends.right;
+  if (side==='left') {
+    if (tile.bottom===end) return {...tile, dTop:tile.top, dBottom:tile.bottom, exTop:tile.top, exBottom:tile.bottom};
+    return {...tile, dTop:tile.bottom, dBottom:tile.top, exTop:tile.bottom, exBottom:tile.top};
+  }
+  if (tile.top===end) return {...tile, dTop:tile.top, dBottom:tile.bottom, exTop:tile.top, exBottom:tile.bottom};
+  return {...tile, dTop:tile.bottom, dBottom:tile.top, exTop:tile.bottom, exBottom:tile.top};
+}
+function handScore(p) {
+  return p.hand.reduce((s,t)=>s+t.top+t.bottom,0);
+}
+function teamScore(team) {
+  return GS.players.filter(p=>p.team===team).reduce((s,p)=>s+handScore(p),0);
+}
+
+// ==================== UI ====================
+function log(msg, type) {
+  const c = document.getElementById('log-msgs');
+  const el = document.createElement('div');
+  el.className = `msg ${type || 'info'} a-slide`;
+  el.textContent = msg;
+  c.appendChild(el);
+  while (c.children.length > 4) c.removeChild(c.firstChild);
+  setTimeout(()=>{if(el.parentNode)el.remove()},4000);
+}
+function updateOpps() {
+  for (let i=1; i<=3; i++) {
+    const p = GS.players[i];
+    const cnt = Math.min(p.hand.length, 5);
+    let h = '';
+    for (let j=0; j<cnt; j++) h += '<div class="back"></div>';
+    if (p.hand.length > 5) h += `<span style="font-size:9px;color:rgba(255,255,255,.4);margin-left:4px">+${p.hand.length-5}</span>`;
+    document.getElementById(`hand-${i}`).innerHTML = h;
+    document.getElementById(`count-${i}`).textContent = p.hand.length;
+    const av = document.getElementById(`avatar-${i}`);
+    av.className = `opp-avatar ${p.team==='A'?'team-a':'team-b'}`;
+    const bd = document.getElementById(`avatar-wrap-${i}`).querySelector('.opp-badge');
+    if (bd) { bd.className = `opp-badge ${p.team.toLowerCase()}`; bd.textContent = p.team; }
+  }
+}
+function updateBoard() {
+  const ends = getEnds();
+  const el = document.getElementById('end-left'), er = document.getElementById('end-right');
+  if (ends) {
+    el.classList.add('show'); er.classList.add('show');
+    document.getElementById('left-val').textContent = ends.left;
+    document.getElementById('right-val').textContent = ends.right;
+  } else { el.classList.remove('show'); er.classList.remove('show'); }
+
+  const bc = document.getElementById('board-chain');
+  if (!GS.board.length) bc.innerHTML = '<div id="board-empty">— empty board —</div>';
+  else bc.innerHTML = GS.board.map(item => {
+    const v = item.tile.top === item.tile.bottom;
+    return renderTile({...item.tile, top:item.dTop, bottom:item.dBottom}, v, false, false, true);
+  }).join('');
+
+  // Auto-scroll to the end that just changed; show a "drag to pan" hint when it overflows.
+  requestAnimationFrame(() => {
+    const overflow = bc.scrollWidth > bc.clientWidth + 4;
+    bc.style.justifyContent = overflow ? 'flex-start' : 'center';
+    const hint = document.getElementById('board-hint');
+    if (hint) hint.textContent = overflow ? '↔ drag to see the whole board' : '';
+    if (!GS._dragging) {
+      if (GS.lastPlaySide === 'left') bc.scrollLeft = 0;
+      else bc.scrollLeft = bc.scrollWidth; // default / right play -> newest tile
+    }
+  });
+
+  document.getElementById('boneyard-count').textContent = GS.boneyard.length;
+}
+function updateHand() {
+  const p = GS.players[0], ends = getEnds();
+  document.getElementById('hand').innerHTML = p.hand.map(t => {
+    const ok = canPlay(t, ends);
+    return renderTile(t, true, ok, ok && GS.current===0 && GS.roundActive, false);
+  }).join('');
+  document.getElementById('hand-count').textContent = `Hand: ${p.hand.length} tiles`;
+  document.getElementById('hand-score').textContent = `Hand Score: ${handScore(p)}`;
+
+  const drawBtn = document.getElementById('draw-btn'), passBtn = document.getElementById('pass-btn');
+  if (GS.current===0 && GS.roundActive) {
+    const hasPlay = p.hand.some(t => canPlay(t, ends));
+    drawBtn.disabled = hasPlay || !GS.boneyard.length;
+    passBtn.disabled = hasPlay || GS.boneyard.length > 0;
+  } else { drawBtn.disabled = true; passBtn.disabled = true; }
+
+  document.querySelectorAll('#hand .tile[data-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      if (GS.current!==0 || !GS.roundActive) return;
+      const id = el.getAttribute('data-id');
+      const tile = p.hand.find(t=>t.id===id);
+      if (tile && canPlay(tile, ends)) clickTile(tile, el);
+      else { el.classList.add('a-shake'); playSound('error'); setTimeout(()=>el.classList.remove('a-shake'),300); }
+    });
+  });
+  sizeHand();
+}
+// Shrink hand tiles so the whole hand fits the panel width (no horizontal scroll).
+function sizeHand() {
+  const h = document.getElementById('hand');
+  if (!h) return;
+  const tiles = h.querySelectorAll('.tile');
+  const n = tiles.length;
+  if (!n) return;
+  const gap = 6, avail = h.clientWidth - 2;
+  let w = Math.floor((avail - (n - 1) * gap) / n);
+  w = Math.max(30, Math.min(52, w));
+  const ht = Math.round(w / 52 * 88);
+  tiles.forEach(t => { t.style.width = w + 'px'; t.style.height = ht + 'px'; });
+  h.style.justifyContent = (w * n + (n - 1) * gap < avail) ? 'center' : 'flex-start';
+}
+window.addEventListener('resize', () => { if (document.getElementById('hand')) sizeHand(); });
+function updateTurn() {
+  const p = GS.players[GS.current];
+  document.getElementById('player-turn').textContent = GS.current===0 ? 'Your Turn' : `${p.name}'s Turn`;
+  document.getElementById('player-turn').style.color = GS.current===0 ? '#00ff88' : 'rgba(255,255,255,.5)';
+  for (let i=1; i<=3; i++) {
+    const wrap = document.getElementById(`avatar-wrap-${i}`);
+    const ring = wrap.querySelector('.opp-thinking');
+    const badge = wrap.querySelector('.opp-thinking-badge');
+    if (ring) ring.remove();
+    if (badge) badge.remove();
+  }
+  if (GS.current > 0 && GS.roundActive) {
+    const wrap = document.getElementById(`avatar-wrap-${GS.current}`);
+    const ring = document.createElement('div'); ring.className = 'opp-thinking';
+    wrap.appendChild(ring);
+    const badge = document.createElement('div'); badge.className = 'opp-thinking-badge'; badge.textContent = 'thinking';
+    wrap.appendChild(badge);
+  }
+}
+function updateScores() {
+  document.getElementById('score-a').textContent = GS.scores.A;
+  document.getElementById('score-b').textContent = GS.scores.B;
+  document.getElementById('bar-a').style.width = Math.min((GS.scores.A/GS.target)*100,100)+'%';
+  document.getElementById('bar-b').style.width = Math.min((GS.scores.B/GS.target)*100,100)+'%';
+  document.getElementById('round-display').textContent = GS.roundNum;
+  document.getElementById('target-display').textContent = GS.target;
+  document.querySelectorAll('.target-num').forEach(el => el.textContent = GS.target);
+}
+function updateAll() {
+  updateOpps();
+  updateBoard();
+  updateHand();
+  updateTurn();
+  updateScores();
+}
+
+// ==================== TIMER ====================
+function startTimer() {
+  if (GS.timerId) clearInterval(GS.timerId);
+  GS.timer = TURN_SECONDS;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = '100%';
+  fill.classList.remove('warning');
+  renderTimer();
+  GS.timerId = setInterval(() => {
+    if (!GS.roundActive) { clearInterval(GS.timerId); return; }
+    GS.timer -= 1;
+    fill.style.width = Math.max((GS.timer/TURN_SECONDS)*100,0) + '%';
+    if (GS.timer < 30) fill.classList.add('warning');
+    renderTimer();
+    if (GS.timer <= 0) { clearInterval(GS.timerId); if (GS.current===0) playerTimeout(); }
+  }, 1000);
+}
+function renderTimer() {
+  const t = Math.max(GS.timer, 0);
+  const txt = document.getElementById('timer-text');
+  txt.textContent = Math.floor(t/60) + ':' + String(t%60).padStart(2,'0');
+  txt.classList.toggle('warning', t < 30);
+}
+
+// ==================== PLAYER ACTIONS ====================
+function clickTile(tile, el) {
+  initAudio();
+  const ends = getEnds(), sides = getSides(tile, ends);
+  if (!sides.length) { el.classList.add('a-shake'); playSound('error'); setTimeout(()=>el.classList.remove('a-shake'),300); return; }
+  if (sides.length === 1) { executePlay(tile, el, sides[0]); return; }
+  GS.pending = {tile, el};
+  document.getElementById('side-modal').classList.add('show');
+}
+function chooseSide(side) {
+  document.getElementById('side-modal').classList.remove('show');
+  if (GS.pending) {
+    executePlay(GS.pending.tile, GS.pending.el, side);
+    GS.pending = null;
+  }
+}
+function executePlay(tile, el, side) {
+  const ends = getEnds();
+  const sp = getSpinner();
+  if (sp && tile.top!==sp.num && tile.bottom!==sp.num) {
+    el.classList.add('a-shake'); playSound('error');
+    log(`Must match spinner [${sp.num}|${sp.num}]!`, 'error');
+    setTimeout(()=>el.classList.remove('a-shake'),300);
+    return;
+  }
+  el.classList.add(side==='left'?'a-playL':'a-playR');
+  playSound('play');
+  setTimeout(() => {
+    GS.players[0].hand = GS.players[0].hand.filter(t=>t.id!==tile.id);
+    const o = orient(tile, side, ends);
+    if (!GS.board.length) GS.board.push({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:0, on:'center'});
+    else if (side==='right') GS.board.push({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:0, on:'right'});
+    else GS.board.unshift({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:0, on:'left'});
+    GS.passes = 0;
+    GS.lastPlaySide = GS.board.length===1 ? 'right' : side;
+    const newSp = getSpinner();
+    if (sp && !newSp) log(`Spinner [${sp.num}|${sp.num}] covered!`, 'info');
+    log(`You played [${tile.top}|${tile.bottom}] ${side==='left'?'⬅️':'➡️'}`, 'success');
+    updateAll();
+    if (!GS.players[0].hand.length) { endRound(0); return; }
+    nextTurn();
+  }, 350);
+}
+function drawTile() {
+  if (!GS.roundActive || GS.current!==0 || !GS.boneyard.length) return;
+  initAudio(); playSound('draw');
+  const t = GS.boneyard.pop();
+  GS.players[0].hand.push(t); GS.passes = 0;
+  log(`Drew [${t.top}|${t.bottom}]`, 'info');
+  updateAll();
+  const el = document.querySelector(`#hand [data-id="${t.id}"]`);
+  if (el) el.classList.add('a-draw');
+  const ends = getEnds();
+  if (!GS.players[0].hand.some(t=>canPlay(t,ends)) && !GS.boneyard.length) log('No moves left — you must pass.', 'error');
+}
+// Auto-action when the player's timer runs out (never pass illegally).
+function playerTimeout() {
+  if (GS.current!==0 || !GS.roundActive) return;
+  const ends = getEnds();
+  const p = GS.players[0];
+  const playable = p.hand.filter(t=>canPlay(t,ends));
+  if (playable.length) {
+    const tile = playable[0];
+    const sides = getSides(tile, ends);
+    const side = sides.includes('right') ? 'right' : 'left';
+    const el = document.querySelector(`#hand [data-id="${tile.id}"]`);
+    log('Time up — auto-playing.', 'error');
+    if (el) executePlay(tile, el, side);
+  } else if (GS.boneyard.length) {
+    log('Time up — auto-drawing.', 'error');
+    drawTile();
+    startTimer();
+  } else {
+    passTurn();
+  }
+}
+function passTurn() {
+  if (!GS.roundActive || GS.current!==0) return;
+  initAudio(); playSound('pass'); GS.passes++;
+  log('You passed', 'error');
+  if (GS.passes >= 4 || isBlocked()) { endBlocked(); return; }
+  nextTurn();
+}
+function isBlocked() {
+  const ends = getEnds();
+  if (!ends) return false;
+  for (let p of GS.players) if (p.hand.some(t=>canPlay(t,ends))) return false;
+  return GS.boneyard.length === 0;
+}
+
+// ==================== BOT ====================
+function botPlay() {
+  if (!GS.roundActive) return;
+  const bot = GS.players[GS.current], ends = getEnds();
+  const playable = bot.hand.filter(t=>canPlay(t,ends));
+  setTimeout(() => {
+    if (!GS.roundActive) return;
+    if (playable.length) {
+      const tile = playable.reduce((b,c) => {
+        const sp = getSpinner();
+        if (sp) {
+          const cd = c.top===c.bottom && c.top===sp.num, bd = b.top===b.bottom && b.top===sp.num;
+          if (cd && !bd) return c; if (!cd && bd) return b;
+        }
+        const cd = c.top===c.bottom, bd = b.top===b.bottom;
+        if (cd && !bd) return c; if (!cd && bd) return b;
+        return (c.top+c.bottom)>(b.top+b.bottom)?c:b;
+      });
+      bot.hand = bot.hand.filter(t=>t.id!==tile.id);
+      const sides = getSides(tile, ends);
+      const side = sides.includes('right')?'right':'left';
+      const o = orient(tile, side, ends);
+      if (!GS.board.length) GS.board.push({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:GS.current, on:'center'});
+      else if (side==='right') GS.board.push({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:GS.current, on:'right'});
+      else GS.board.unshift({tile, dTop:o.dTop, dBottom:o.dBottom, exTop:o.exTop, exBottom:o.exBottom, by:GS.current, on:'left'});
+      GS.passes = 0;
+      GS.lastPlaySide = GS.board.length===1 ? 'right' : side;
+      playSound('play');
+      log(`${bot.name} played [${tile.top}|${tile.bottom}] ${side==='left'?'⬅️':'➡️'}`, 'info');
+      updateAll();
+      if (!bot.hand.length) { endRound(GS.current); return; }
+      nextTurn();
+    } else if (GS.boneyard.length) {
+      bot.hand.push(GS.boneyard.pop());
+      log(`${bot.name} drew`, 'info');
+      const ne = getEnds();
+      if (bot.hand.some(t=>canPlay(t,ne))) { updateAll(); setTimeout(botPlay,600); return; }
+      else { GS.passes++; log(`${bot.name} passed (no match)`, 'error'); if (GS.passes>=4||isBlocked()){endBlocked();return;} updateAll(); nextTurn(); }
+    } else {
+      GS.passes++; log(`${bot.name} passed (no moves)`, 'error');
+      if (GS.passes>=4||isBlocked()) { endBlocked(); return; }
+      updateAll(); nextTurn();
+    }
+  }, 1200 + Math.random()*800);
+}
+function nextTurn() {
+  GS.current = (GS.current+1)%4;
+  updateAll(); startTimer();
+  if (GS.players[GS.current].isBot && GS.roundActive) setTimeout(botPlay, 300);
+}
+
+// ==================== ROUND / GAME END ====================
+function scoreRound(winnerTeam) {
+  const loser = winnerTeam==='A'?'B':'A';
+  const pts = teamScore(loser);
+  GS.scores[winnerTeam] += pts;
+  return {winner:winnerTeam, points:pts, a:GS.scores.A, b:GS.scores.B};
+}
+function checkWinner() {
+  if (GS.scores.A >= GS.target) return 'A';
+  if (GS.scores.B >= GS.target) return 'B';
+  return null;
+}
+function endRound(winnerId) {
+  GS.roundActive = false;
+  clearInterval(GS.timerId);
+  GS.lastWinner = winnerId;
+  setTimeout(() => {
+    const team = GS.players[winnerId].team;
+    const r = scoreRound(team);
+    playSound('score');
+    const modal = document.getElementById('round-modal');
+    document.getElementById('round-title').textContent = `Round ${GS.roundNum} Complete!`;
+    if (team==='A') {
+      document.getElementById('round-points-a').textContent = `+${r.points}`;
+      document.getElementById('round-points-a').style.color = '#00ff88';
+      document.getElementById('round-points-b').textContent = '+0';
+      document.getElementById('round-points-b').style.color = 'rgba(255,255,255,.3)';
+      document.getElementById('round-winner').innerHTML = `<span style="color:#00ff88;font-weight:700">Team A wins!</span> ${GS.players[winnerId].name} cleared their hand.`;
+    } else {
+      document.getElementById('round-points-a').textContent = '+0';
+      document.getElementById('round-points-a').style.color = 'rgba(255,255,255,.3)';
+      document.getElementById('round-points-b').textContent = `+${r.points}`;
+      document.getElementById('round-points-b').style.color = '#ffb4ab';
+      document.getElementById('round-winner').innerHTML = `<span style="color:#ffb4ab;font-weight:700">Team B wins!</span> ${GS.players[winnerId].name} cleared their hand.`;
+    }
+    document.getElementById('round-total-a').textContent = r.a;
+    document.getElementById('round-total-b').textContent = r.b;
+    document.getElementById('round-bar-a').style.width = Math.min((r.a/GS.target)*100,100)+'%';
+    document.getElementById('round-bar-b').style.width = Math.min((r.b/GS.target)*100,100)+'%';
+    updateScores();
+    const gw = checkWinner();
+    if (gw) {
+      setTimeout(() => { modal.classList.remove('show'); showGameOver(gw); }, 2000);
+      return;
+    }
+    modal.classList.add('show');
+  }, 800);
+}
+function endBlocked() {
+  const sa = teamScore('A'), sb = teamScore('B');
+  const wt = sa <= sb ? 'A' : 'B';
+  const wp = GS.players.find(p=>p.team===wt);
+  log(`Blocked! Team ${wt} wins (lower score: ${Math.min(sa,sb)})`, 'success');
+  endRound(wp.id);
+}
+function showGameOver(winner) {
+  const modal = document.getElementById('game-over-modal');
+  const title = document.getElementById('game-over-title');
+  const msg = document.getElementById('game-over-msg');
+  const icon = document.getElementById('game-over-icon');
+  document.getElementById('final-a').textContent = GS.scores.A;
+  document.getElementById('final-b').textContent = GS.scores.B;
+  if (winner==='A') {
+    title.textContent = 'Team Victory!';
+    title.style.color = '#00ff88';
+    msg.textContent = 'Team A (You + Alpha) reached ' + GS.target + '!';
+    icon.textContent = '🏆';
+    playSound('win');
+  } else {
+    title.textContent = 'Defeat';
+    title.style.color = '#ffb4ab';
+    msg.textContent = 'Team B (Beta + Gamma) reached ' + GS.target + '!';
+    icon.textContent = '😞';
+    playSound('pass');
+  }
+  submitResult(winner);
+  modal.classList.add('show');
+}
+function nextRound() {
+  document.getElementById('round-modal').classList.remove('show');
+  GS.roundNum++;
+  GS.roundActive = true;
+  GS.passes = 0;
+  GS.pending = null;
+  document.getElementById('log-msgs').innerHTML = '';
+
+  const deck = createDeck();
+  GS.players.forEach(p=>p.hand=deck.splice(0,7));
+  GS.boneyard = deck;
+  GS.board = [];
+
+  const lw = GS.lastWinner !== null ? GS.lastWinner : 0;
+  const winner = GS.players[lw];
+  let hd = -1;
+  winner.hand.forEach(t=>{if(t.top===t.bottom&&t.top>hd)hd=t.top;});
+  if (hd!==-1) {
+    const dt = winner.hand.find(t=>t.top===hd&&t.bottom===hd);
+    winner.hand = winner.hand.filter(t=>t.id!==dt.id);
+    GS.board.push({tile:dt, dTop:dt.top, dBottom:dt.bottom, exTop:dt.top, exBottom:dt.bottom, by:lw, on:'center'});
+    log(`Round ${GS.roundNum} - ${winner.name} starts [${hd}|${hd}]`, 'success');
+  } else {
+    const bt = winner.hand.reduce((b,t)=>(t.top+t.bottom)>(b.top+b.bottom)?t:b);
+    winner.hand = winner.hand.filter(t=>t.id!==bt.id);
+    GS.board.push({tile:bt, dTop:bt.top, dBottom:bt.bottom, exTop:bt.top, exBottom:bt.bottom, by:lw, on:'center'});
+    log(`Round ${GS.roundNum} - ${winner.name} starts [${bt.top}|${bt.bottom}]`, 'success');
+  }
+  GS.current = (lw+1)%4;
+  updateAll(); startTimer();
+  if (GS.players[GS.current].isBot) setTimeout(botPlay, 1200);
+}
+
+// ==================== INIT ====================
+function initGame() {
+  GS.scores = {A:0, B:0};
+  GS.roundNum = 1;
+  GS.roundActive = true;
+  GS.lastWinner = null;
+  GS.passes = 0;
+  GS.pending = null;
+  if (!GS.target) GS.target = 101;
+
+  const deck = createDeck();
+  GS.players.forEach(p=>p.hand=deck.splice(0,7));
+  GS.boneyard = deck;
+  GS.board = [];
+
+  let hd = -1, st = 0;
+  GS.players.forEach((p,i)=>p.hand.forEach(t=>{if(t.top===t.bottom&&t.top>hd){hd=t.top;st=i;}}));
+  if (hd===-1) st = Math.floor(Math.random()*4);
+  else {
+    const dt = GS.players[st].hand.find(t=>t.top===hd&&t.bottom===hd);
+    if (dt) {
+      GS.players[st].hand = GS.players[st].hand.filter(t=>t.id!==dt.id);
+      GS.board.push({tile:dt, dTop:dt.top, dBottom:dt.bottom, exTop:dt.top, exBottom:dt.bottom, by:st, on:'center'});
+      log(`${GS.players[st].name} starts [${hd}|${hd}]`, 'success');
+    }
+  }
+  GS.current = (st+1)%4;
+  updateAll(); startTimer();
+  if (GS.players[GS.current].isBot) setTimeout(botPlay, 1200);
+}
+function rematch() {
+  document.getElementById('game-over-modal').classList.remove('show');
+  document.getElementById('round-modal').classList.remove('show');
+  document.getElementById('settings-modal').classList.remove('show');
+  initGame();
+}
+
+// ==================== SETTINGS ====================
+function showSettings() {
+  document.getElementById('settings-modal').classList.add('show');
+  renderTeamRows();
+  updateTeamPreview();
+  document.querySelectorAll('[data-target]').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.target)===GS.target);
+  });
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+function renderTeamRows() {
+  const c = document.getElementById('team-rows');
+  c.innerHTML = GS.players.map((p,i)=>`
+    <div class="row">
+      <div class="name">
+        <img src="${p.avatar}">
+        ${p.name}
+      </div>
+      <select id="team-sel-${i}" onchange="updateTeamPreview()">
+        <option value="A" ${p.team==='A'?'selected':''}>Team A</option>
+        <option value="B" ${p.team==='B'?'selected':''}>Team B</option>
+      </select>
+    </div>
+  `).join('');
+}
+function updateTeamPreview() {
+  const a = [], b = [];
+  for (let i=0; i<4; i++) {
+    const t = document.getElementById(`team-sel-${i}`).value;
+    (t==='A'?a:b).push(GS.players[i].name);
+  }
+  document.getElementById('team-preview').innerHTML = `<span style="color:#00ff88">Team A:</span> ${a.join(', ')} | <span style="color:#ffb4ab">Team B:</span> ${b.join(', ')}`;
+}
+function setTarget(n) {
+  GS.target = n;
+  document.querySelectorAll('[data-target]').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.target)===n));
+}
+function applySettings() {
+  for (let i=0; i<4; i++) GS.players[i].team = document.getElementById(`team-sel-${i}`).value;
+  closeSettings();
+  rematch();
+}
+function swapTeams() {
+  GS.players.forEach(p=>p.team=p.team==='A'?'B':'A');
+  closeSettings();
+  rematch();
+}
+
+// ==================== RULES ====================
+function showRules() {
+  document.getElementById('rules-modal').classList.add('show');
+}
+function closeRules() {
+  document.getElementById('rules-modal').classList.remove('show');
+}
+
+// ==================== LEADERBOARD ====================
+// Server that stores the shared leaderboard. Change to your hosted URL, e.g.
+// 'https://domi-dominoes.onrender.com', so single-player results join the online board.
+const LEADERBOARD_API = 'https://domi-dominoes.onrender.com';
+const LB_AVATARS = ['🙂','😎','🐱','🐶','🦊','🐼','🐯','🦁','🐸','🐵','🦄','🐲','🤠','👽','🐙','🐺'];
+function lbName() { return (localStorage.getItem('domiName') || 'You').slice(0, 24); }
+function lbAvatar() { return localStorage.getItem('domiAvatar') || '🙂'; }
+function renderLbAvatarPick() {
+  const c = document.getElementById('lb-avatar-pick'); if (!c) return;
+  const cur = lbAvatar();
+  c.innerHTML = LB_AVATARS.map(a => `<div class="av ${a === cur ? 'sel' : ''}" data-a="${a}">${a}</div>`).join('');
+  c.querySelectorAll('.av').forEach(el => el.onclick = () => { localStorage.setItem('domiAvatar', el.dataset.a); renderLbAvatarPick(); });
+}
+function escHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function showLeaderboard() {
+  document.getElementById('leaderboard-modal').classList.add('show');
+  document.getElementById('lb-name-input').value = lbName();
+  renderLbAvatarPick();
+  loadLeaderboard();
+}
+function closeLeaderboard() {
+  document.getElementById('leaderboard-modal').classList.remove('show');
+}
+function saveLbName() {
+  const v = document.getElementById('lb-name-input').value.trim().slice(0, 24);
+  if (v) { localStorage.setItem('domiName', v); loadLeaderboard(); }
+}
+function loadLeaderboard() {
+  const rowsEl = document.getElementById('lb-rows'), youEl = document.getElementById('lb-you');
+  rowsEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);padding:12px">loading…</div>';
+  const name = lbName();
+  Promise.all([
+    fetch(`${LEADERBOARD_API}/api/leaderboard`).then(r => r.json()),
+    fetch(`${LEADERBOARD_API}/api/profile?name=${encodeURIComponent(name)}`).then(r => r.json())
+  ]).then(([lb, you]) => {
+    youEl.innerHTML = `<span class="tier ${you.tier}">${you.tier}</span> · ${you.points} pts · ${you.wins}W/${you.losses}L`
+      + (you.rank ? ` · rank #${you.rank}` : '');
+    const me = name.toLowerCase();
+    if (!lb.rows || !lb.rows.length) { rowsEl.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.4);padding:12px">No games yet — play one!</div>'; return; }
+    rowsEl.innerHTML = lb.rows.map(r => `
+      <div class="lb-row ${r.name.toLowerCase() === me ? 'me' : ''}">
+        <div class="lb-rank">${r.rank}</div>
+        <div class="lb-av">${r.avatar || '🙂'}</div>
+        <div class="lb-name">${escHtml(r.name)} <span class="tier ${r.tier}">${r.tier}</span></div>
+        <div class="lb-pts">${r.points}</div>
+        <div class="lb-w">${r.wins}W</div>
+      </div>`).join('');
+  }).catch(() => {
+    youEl.textContent = '—';
+    rowsEl.innerHTML = `<div style="text-align:center;color:rgba(255,255,255,.4);padding:12px">Leaderboard server offline.<br><span style="font-size:11px">Start the server or set LEADERBOARD_API to your hosted URL.</span></div>`;
+  });
+}
+// Submit a finished single-player game (you are Team A).
+function submitResult(winnerTeam) {
+  const body = JSON.stringify({ name: lbName(), won: winnerTeam === 'A', points: GS.scores.A, avatar: lbAvatar() });
+  fetch(`${LEADERBOARD_API}/api/result`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+}
+
+// ==================== BOARD DRAG-TO-PAN ====================
+function initBoardDrag() {
+  const bc = document.getElementById('board-chain');
+  if (!bc) return;
+  let startX = 0, startScroll = 0, moved = 0;
+  bc.addEventListener('pointerdown', e => {
+    GS._dragging = true; moved = 0;
+    startX = e.clientX; startScroll = bc.scrollLeft;
+    bc.classList.add('grabbing');
+    try { bc.setPointerCapture(e.pointerId); } catch {}
+  });
+  bc.addEventListener('pointermove', e => {
+    if (!GS._dragging) return;
+    const dx = e.clientX - startX;
+    moved = Math.max(moved, Math.abs(dx));
+    bc.scrollLeft = startScroll - dx;
+  });
+  const end = () => { GS._dragging = false; bc.classList.remove('grabbing'); };
+  bc.addEventListener('pointerup', end);
+  bc.addEventListener('pointercancel', end);
+  bc.addEventListener('pointerleave', () => { if (GS._dragging) end(); });
+  // Mouse wheel pans horizontally too.
+  bc.addEventListener('wheel', e => {
+    if (bc.scrollWidth > bc.clientWidth) { bc.scrollLeft += (e.deltaY || e.deltaX); e.preventDefault(); }
+  }, { passive: false });
+}
+
+// ==================== START ====================
+document.addEventListener('DOMContentLoaded', () => {
+  initBoardDrag();
+  initGame();
+  document.addEventListener('click', ()=>{if(!GS.audioCtx)initAudio();}, {once:true});
+});
+document.addEventListener('contextmenu', e=>e.preventDefault());
+</script>
+</body>
+</html>

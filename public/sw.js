@@ -1,7 +1,7 @@
 // Minimal service worker — enables PWA install + an app-shell cache.
 // Network-first for navigations so updates always show; cache fallback when offline.
-const CACHE = 'domi-v1';
-const SHELL = ['./', 'index.html', 'manifest.json', 'icon.svg'];
+const CACHE = 'domi-v2';
+const SHELL = ['./', 'index.html', 'offline.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));
