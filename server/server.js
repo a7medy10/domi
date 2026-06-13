@@ -38,6 +38,9 @@ async function handleApi(req, res, urlObj) {
         uptimeSec: Math.round(process.uptime())
       });
     }
+    if (urlObj.pathname === '/api/rooms' && req.method === 'GET') {
+      return json(res, 200, { rooms: listOpenRooms() });
+    }
     if (urlObj.pathname === '/api/leaderboard' && req.method === 'GET') {
       const limit = Math.min(50, parseInt(urlObj.searchParams.get('limit')) || 20);
       const period = urlObj.searchParams.get('period') === 'week' ? 'week' : 'all';
@@ -397,6 +400,26 @@ function startGame(room) {
 function firstFreeSeat(room) {
   const s = activeSeats(room).find(s => !s.occupied);
   return s ? s.seat : -1;
+}
+
+// Tables waiting in the lobby with at least one open seat (for the dashboard).
+function listOpenRooms() {
+  const out = [];
+  for (const r of rooms.values()) {
+    if (r.phase !== 'lobby') continue;
+    if (firstFreeSeat(r) < 0) continue;
+    const occ = activeSeats(r).filter(s => s.occupied).length;
+    const host = r.seats[r.hostSeat];
+    out.push({
+      code: r.code,
+      host: host && host.occupied ? host.name : '—',
+      avatar: host && host.occupied ? (host.avatar || '🙂') : '🙂',
+      players: occ, max: r.numPlayers,
+      mode: r.teams ? '2v2 Teams' : (r.numPlayers + 'P FFA'),
+      draw: r.draw, target: r.target
+    });
+  }
+  return out.sort((a, b) => (b.players) - (a.players));
 }
 
 // ---------- connection handling ----------

@@ -371,6 +371,7 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
       <button class="btn-ghost" data-i18n="join" onclick="joinRoom()">Join</button>
       <button class="btn-ghost" data-i18n="watch" onclick="watchRoom()">👀 Watch</button>
     </div>
+    <button class="btn-ghost" style="width:100%;margin-top:10px" data-i18n="tables" onclick="openTables()">📋 Open Tables</button>
     <div class="row-join" style="margin-top:10px">
       <button class="btn-ghost" style="flex:1" data-i18n="leaderboard" onclick="openLeaderboard()">🏆 Leaderboard</button>
       <button class="btn-ghost" style="flex:1" data-i18n="theme" onclick="openThemes()">🎨 Theme</button>
@@ -460,6 +461,19 @@ body.spectating #player-area, body.spectating #controls{display:none!important}
     <div class="sub" id="lb-you"></div>
     <div id="lb-rows"></div>
     <button class="btn-ghost" style="width:100%;margin-top:12px" data-i18n="close" onclick="hide('lb-overlay')">Close</button>
+  </div>
+</div>
+
+<!-- ===== OPEN TABLES (dashboard) ===== -->
+<div class="overlay" id="tables-overlay">
+  <div class="card-modal">
+    <h2 data-i18n="tables">📋 Open Tables</h2>
+    <div class="sub" data-i18n="tap_join">Tap a table to join</div>
+    <div id="tables-list"></div>
+    <div class="row-join" style="margin-top:12px">
+      <button class="btn-ghost" style="flex:1" onclick="openTables()">↻ <span data-i18n="refresh">Refresh</span></button>
+      <button class="btn-primary" style="flex:1" data-i18n="close" onclick="hide('tables-overlay')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -584,6 +598,9 @@ const I18N = {
   quick:{en:'⚡ Quick Play', ar:'⚡ لعب سريع'},
   create:{en:'➕ Create Room', ar:'➕ إنشاء غرفة'},
   offline:{en:'🤖 Play Offline (vs Bots)', ar:'🤖 العب بدون إنترنت (ضد البوت)'},
+  tables:{en:'📋 Open Tables', ar:'📋 الطاولات المفتوحة'},
+  tap_join:{en:'Tap a table to join', ar:'اضغط على طاولة للانضمام'},
+  refresh:{en:'Refresh', ar:'تحديث'},
   or_join:{en:'or join / watch with a code', ar:'أو انضم / شاهد برمز'},
   join:{en:'Join', ar:'انضمام'},
   watch:{en:'👀 Watch', ar:'👀 مشاهدة'},
@@ -753,6 +770,29 @@ function renderLeaderboard(rows, you){
       <div class="lb-pts">${r.points}</div>
       <div class="lb-w">${r.wins}W</div>
     </div>`).join('');
+}
+// ---------- open tables dashboard ----------
+function openTables(){
+  show('tables-overlay');
+  $('tables-list').innerHTML = '<div class="lb-empty">loading…</div>';
+  fetch(apiBase()+'/api/rooms').then(r=>r.json()).then(d=>renderTables(d.rooms))
+    .catch(()=>{ $('tables-list').innerHTML='<div class="lb-empty">unavailable</div>'; });
+}
+function renderTables(rooms){
+  if(!rooms || !rooms.length){ $('tables-list').innerHTML='<div class="lb-empty">No open tables — Create one or Quick Play.</div>'; return; }
+  $('tables-list').innerHTML = rooms.map(r=>`
+    <div class="lb-row" onclick="joinTable('${r.code}')">
+      <div class="lb-av">${r.avatar||'🙂'}</div>
+      <div class="lb-name"><b style="font-family:monospace;letter-spacing:2px;color:#00ff88">${r.code}</b> · ${esc(r.mode)}
+        <div style="font-size:10px;color:rgba(255,255,255,.45)">host ${esc(r.host)} · →${r.target} · ${r.draw?'draw':'block'}</div></div>
+      <div class="lb-w">${r.players}/${r.max}</div>
+    </div>`).join('');
+}
+function joinTable(code){
+  const name = ($('name-input').value||'Player').trim();
+  localStorage.setItem('domiName', name);
+  hide('tables-overlay');
+  connect(()=> sendMsg({type:'join', code, name, avatar:myAvatar}));
 }
 // ---------- profile card ----------
 function apiBase(){ return WS_URL.replace(/^ws/,'http'); }
