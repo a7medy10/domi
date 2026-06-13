@@ -79,4 +79,5 @@ async function profile(name) {
   return { name: r.name, avatar: r.avatar || null, points: r.points, wins: r.wins, losses: r.losses, games: r.gamesPlayed, roundsWon: r.roundsWon || 0, tier: tierFor(r.points), rank, history: (r.history || []).slice(-10) };
 }
 
-module.exports = { initStore, recordResult, setAvatar, leaderboard, profile, tierFor };
+function storeMode() { return mode; }
+module.exports = { initStore, recordResult, setAvatar, leaderboard, profile, tierFor, storeMode };

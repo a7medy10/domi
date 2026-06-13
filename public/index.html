@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Team 101 Dominoes — Online</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dominos">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a0a;color:#e5e2e1;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -223,6 +229,20 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
 #board-chain.grabbing{cursor:grabbing}
 #board-chain.grabbing .tile{pointer-events:none}
 
+/* Themes — felt skins via body[data-felt] */
+#table-felt{background:var(--felt, radial-gradient(ellipse at 50% 45%, rgba(0,255,136,.12) 0%, #0e1715 50%, #0a100e 100%));border-color:var(--felt-rim, rgba(0,255,136,.28))}
+body[data-felt="green"]{--felt:radial-gradient(ellipse at 50% 42%,#1b6b46 0%,#114a32 55%,#0a2c1d 100%);--felt-rim:#3a2516}
+body[data-felt="blue"]{--felt:radial-gradient(ellipse at 50% 42%,#16466b 0%,#103a55 55%,#0a2030 100%);--felt-rim:#22405a}
+body[data-felt="wood"]{--felt:radial-gradient(ellipse at 50% 42%,#5a3d22 0%,#43301d 55%,#2a1d12 100%);--felt-rim:#6b4a2c}
+body[data-felt="purple"]{--felt:radial-gradient(ellipse at 50% 42%,#3a2363 0%,#2a1a4a 55%,#160c2a 100%);--felt-rim:#4a2c6b}
+#theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.theme-swatch{height:64px;border-radius:12px;cursor:pointer;border:2px solid transparent;display:flex;align-items:flex-end;justify-content:center;font-size:10px;font-family:monospace;color:rgba(255,255,255,.8);padding-bottom:5px}
+.theme-swatch.sel{border-color:#00ff88;box-shadow:0 0 12px rgba(0,255,136,.4)}
+
+/* Spectator */
+#spectate-banner{position:fixed;bottom:0;left:0;right:0;z-index:35;text-align:center;padding:12px;font-family:monospace;font-weight:700;color:#00ff88;background:rgba(14,23,21,.95);border-top:1px solid rgba(0,255,136,.3)}
+body.spectating #player-area, body.spectating #controls{display:none!important}
+
 .hidden{display:none!important}
 @media (max-width:380px){
   #board-chain{max-width:94vw}
@@ -278,6 +298,7 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   <div class="opp" id="opp-top"></div>
   <div class="opp" id="opp-left"></div>
   <div class="opp" id="opp-right"></div>
+  <div class="opp hidden" id="opp-bottom"></div>
 
   <div id="board-area">
     <div id="table-felt"></div>
@@ -314,6 +335,8 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     <div id="hand"></div>
     <div id="hand-meta"><span id="hand-count">Hand: 0</span><span>|</span><span id="hand-score">Score: 0</span></div>
   </div></div>
+
+  <div id="spectate-banner" class="hidden">👀 Spectating — <span id="spectate-info"></span></div>
 </div>
 
 <!-- ===== CONNECT / JOIN ===== -->
@@ -324,14 +347,19 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
     <div class="stack">
       <input id="name-input" placeholder="Your name" maxlength="16">
       <div id="avatar-pick"></div>
-      <button class="btn-primary" onclick="createRoom()">➕ Create Room</button>
+      <button class="btn-primary" onclick="quickMatch()">⚡ Quick Play</button>
+      <button class="btn-ghost" onclick="createRoom()">➕ Create Room</button>
     </div>
-    <div class="divider">or join with a code</div>
+    <div class="divider">or join / watch with a code</div>
     <div class="row-join">
       <input id="code-input" placeholder="CODE" maxlength="4">
       <button class="btn-ghost" onclick="joinRoom()">Join</button>
+      <button class="btn-ghost" onclick="watchRoom()">👀 Watch</button>
     </div>
-    <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="openLeaderboard()">🏆 Leaderboard</button>
+    <div class="row-join" style="margin-top:10px">
+      <button class="btn-ghost" style="flex:1" onclick="openLeaderboard()">🏆 Leaderboard</button>
+      <button class="btn-ghost" style="flex:1" onclick="openThemes()">🎨 Theme</button>
+    </div>
     <div class="err-msg" id="connect-err"></div>
   </div>
 </div>
@@ -413,6 +441,16 @@ header .icon-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,2
   </div>
 </div>
 
+<!-- ===== THEME PICKER ===== -->
+<div class="overlay" id="theme-overlay">
+  <div class="card-modal" style="text-align:center">
+    <h2>🎨 Table Theme</h2>
+    <div class="sub">Pick your felt</div>
+    <div id="theme-grid"></div>
+    <button class="btn-primary" style="width:100%;margin-top:14px" onclick="hide('theme-overlay')">Done</button>
+  </div>
+</div>
+
 <!-- ===== PROFILE CARD ===== -->
 <div class="overlay" id="prof-overlay">
   <div class="card-modal" style="text-align:center">
@@ -488,6 +526,26 @@ function createRoom(){
   localStorage.setItem('domiName', name);
   connect(()=> sendMsg({type:'create', name, avatar:myAvatar}));
 }
+function quickMatch(){
+  const name = ($('name-input').value||'Player').trim();
+  localStorage.setItem('domiName', name);
+  connect(()=> sendMsg({type:'quickmatch', name, avatar:myAvatar}));
+}
+function watchRoom(){
+  const code = ($('code-input').value||'').trim().toUpperCase();
+  if (code.length<3) return showErr('connect-err','Enter a code to watch');
+  connect(()=> sendMsg({type:'spectate', code}));
+}
+// ---------- themes ----------
+const FELTS=[['neon','Neon'],['green','Classic'],['blue','Blue'],['wood','Wood'],['purple','Purple']];
+let myFelt = localStorage.getItem('domiFelt') || 'neon';
+function applyFelt(){ document.body.setAttribute('data-felt', myFelt); }
+function feltPreview(k){ return ({neon:'radial-gradient(circle,#0e1715,#0a100e)',green:'#114a32',blue:'#103a55',wood:'#43301d',purple:'#2a1a4a'})[k]||'#111'; }
+function openThemes(){ show('theme-overlay'); renderThemes(); }
+function renderThemes(){
+  $('theme-grid').innerHTML = FELTS.map(([k,label])=>`<div class="theme-swatch ${k===myFelt?'sel':''}" data-felt="${k}" style="background:${feltPreview(k)}">${label}</div>`).join('');
+  $('theme-grid').querySelectorAll('.theme-swatch').forEach(el=>el.onclick=()=>{ myFelt=el.dataset.felt; localStorage.setItem('domiFelt',myFelt); applyFelt(); renderThemes(); });
+}
 function joinRoom(){
   const name = ($('name-input').value||'Player').trim();
   localStorage.setItem('domiName', name);
@@ -510,7 +568,8 @@ function handle(m){
   if (m.type==='error'){ showErr(connectVisible()?'connect-err':'connect-err', m.message); flashErr(m.message); return; }
   if (m.type==='joined'){
     mySeat=m.yourSeat; myToken=m.token; myCode=m.code;
-    localStorage.setItem('domi', JSON.stringify({code:m.code, token:m.token}));
+    document.body.classList.toggle('spectating', m.spectator===true || m.yourSeat<0);
+    if (m.token) localStorage.setItem('domi', JSON.stringify({code:m.code, token:m.token}));
     return;
   }
   if (m.type==='state'){ S=m; soundTriggers(m); render(); }
@@ -535,10 +594,27 @@ function beep(type){
 function soundTriggers(m){
   const bl = m.board ? m.board.length : 0;
   if (m.phase==='playing' && bl>prevBoardLen) beep('play');
-  if (m.phase==='playing' && m.current===m.yourSeat && prevCurrent!==m.yourSeat) beep('turn');
+  if (m.phase==='playing' && m.current===m.yourSeat && prevCurrent!==m.yourSeat){ beep('turn'); turnAlert(); }
   if (m.phase==='gameOver' && prevPhase!=='gameOver'){ const mine=m.seats[m.yourSeat]&&m.seats[m.yourSeat].team===m.winnerTeam; beep(mine?'win':'lose'); }
   prevBoardLen=bl; prevPhase=m.phase; prevCurrent=m.current;
 }
+// ---------- turn alerts (when tab is in background) ----------
+let titleFlash=null;
+function turnAlert(){
+  if (!document.hidden) return;
+  // flash the tab title
+  if (!titleFlash){
+    const orig=document.title; let on=false;
+    titleFlash=setInterval(()=>{ document.title = (on=!on) ? '▶ YOUR TURN' : orig; }, 900);
+  }
+  // desktop notification
+  try{
+    if (window.Notification && Notification.permission==='granted'){
+      new Notification('Your turn — Dominos Online', { body:'It’s your move!', silent:false });
+    }
+  }catch{}
+}
+window.addEventListener('focus', ()=>{ if(titleFlash){ clearInterval(titleFlash); titleFlash=null; document.title='Team 101 Dominoes — Online'; } });
 // ---------- chat + emotes ----------
 function toggleChat(){ chatOpen=!chatOpen; $('chat-panel').classList.toggle('hidden',!chatOpen); if(chatOpen){ unread=0; $('chat-badge').classList.add('hidden'); $('chat-input').focus(); $('chat-msgs').scrollTop=$('chat-msgs').scrollHeight; } }
 function sendChat(){ const i=$('chat-input'); const t=i.value.trim(); if(!t) return; sendMsg({type:'chat',text:t}); i.value=''; }
@@ -621,6 +697,9 @@ function render(){
   if (S.phase==='lobby'){ $('game-view').classList.add('hidden'); show('lobby-overlay'); renderLobby(); return; }
   hide('lobby-overlay');
   $('game-view').classList.remove('hidden');
+  const spec = mySeat<0;
+  $('spectate-banner').classList.toggle('hidden', !spec);
+  if (spec) $('spectate-info').textContent = `Room ${S.code} · round ${S.roundNum}`;
   S.phase==='roundEnd' ? show('round-overlay') : hide('round-overlay');
   S.phase==='gameOver' ? show('go-overlay') : hide('go-overlay');
   if (S.phase==='roundEnd') renderRoundEnd();
@@ -675,12 +754,19 @@ function renderScores(){
 // Corner seating: opponents take the table corners; you sit at the front (bottom).
 const OPP_POS = { 2:['pos-tc'], 3:['pos-tl','pos-tr'], 4:['pos-tl','pos-tr','pos-br'] };
 let seatSlot = {}; // seat number -> opponent element id (for emote targeting)
+const SPEC_POS = { 2:['pos-tc','pos-bl'], 3:['pos-tl','pos-tr','pos-bl'], 4:['pos-tl','pos-tr','pos-br','pos-bl'] };
 function renderOpponents(){
-  const els=[$('opp-left'),$('opp-top'),$('opp-right')];
+  const els=[$('opp-left'),$('opp-top'),$('opp-right'),$('opp-bottom')];
   els.forEach(e=>{ e.className='opp hidden'; e.innerHTML=''; });
   seatSlot={};
-  const others=[]; for(let k=1;k<S.numPlayers;k++) others.push(S.seats[(mySeat+k)%S.numPlayers]);
-  const pos=OPP_POS[S.numPlayers]||['pos-tl','pos-tr','pos-br'];
+  let others, pos;
+  if (mySeat<0){ // spectator: show all seats around the table
+    others = S.seats.slice(0, S.numPlayers);
+    pos = SPEC_POS[S.numPlayers] || ['pos-tl','pos-tr','pos-br','pos-bl'];
+  } else {
+    others=[]; for(let k=1;k<S.numPlayers;k++) others.push(S.seats[(mySeat+k)%S.numPlayers]);
+    pos = OPP_POS[S.numPlayers] || ['pos-tl','pos-tr','pos-br'];
+  }
   others.forEach((s,i)=>{
     const el=els[i]; if(!el) return;
     const turn=S.current===s.seat;
@@ -827,7 +913,12 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 window.addEventListener('load',()=>{
   initBoardDrag();
   renderAvatarPick();
-  document.addEventListener('pointerdown', ()=>{ if(!audioCtx) initAudio(); }, {once:true});
+  applyFelt();
+  if ('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  document.addEventListener('pointerdown', ()=>{
+    if(!audioCtx) initAudio();
+    try{ if(window.Notification && Notification.permission==='default') Notification.requestPermission(); }catch{}
+  }, {once:true});
   const savedName = localStorage.getItem('domiName');
   if (savedName && $('name-input')) $('name-input').value = savedName;
   const saved = localStorage.getItem('domi');

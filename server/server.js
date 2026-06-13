@@ -16,7 +16,7 @@ const ROUND_GAP_MS = 6000;   // auto-advance to next round after this
 DB.initStore();
 
 // ---------- static file server + leaderboard REST API ----------
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -29,6 +29,14 @@ async function handleApi(req, res, urlObj) {
   try {
     if (urlObj.pathname === '/api/healthz' || urlObj.pathname === '/healthz') {
       return json(res, 200, { ok: true, ts: Date.now() });
+    }
+    if (urlObj.pathname === '/api/version' || urlObj.pathname === '/version') {
+      return json(res, 200, {
+        commit: process.env.RENDER_GIT_COMMIT || 'local',
+        store: DB.storeMode(),
+        rooms: rooms.size,
+        uptimeSec: Math.round(process.uptime())
+      });
     }
     if (urlObj.pathname === '/api/leaderboard' && req.method === 'GET') {
       const limit = Math.min(50, parseInt(urlObj.searchParams.get('limit')) || 20);
@@ -56,7 +64,7 @@ async function handleApi(req, res, urlObj) {
 
 const httpServer = http.createServer((req, res) => {
   const urlObj = new URL(req.url, 'http://localhost');
-  if (urlObj.pathname.startsWith('/api/') || urlObj.pathname === '/healthz') return handleApi(req, res, urlObj);
+  if (urlObj.pathname.startsWith('/api/') || urlObj.pathname === '/healthz' || urlObj.pathname === '/version') return handleApi(req, res, urlObj);
   let urlPath = decodeURIComponent(urlObj.pathname);
   if (urlPath === '/') urlPath = '/index.html';
   const filePath = path.join(PUBLIC_DIR, path.normalize(urlPath).replace(/^(\.\.[/\\])+/, ''));
@@ -103,6 +111,8 @@ function newRoom(code) {
       seat: i, name: `Seat ${i + 1}`, avatar: '🙂', occupied: false, isBot: false,
       connected: false, token: null, ws: null, lastMove: ''
     })),
+    spectators: [],   // ws list of watchers
+    isPublic: false,  // discoverable via quick-match
     game: null
   };
 }
@@ -162,6 +172,7 @@ function buildState(room, viewerSeat) {
     scores: (g && room.teams) ? g.scores : { A: 0, B: 0 },
     hand, hasMove, canDraw, canPass,
     lastRound: room.lastRound, winnerTeam: room.winnerTeam, winnerSeat: room.winnerSeat,
+    spectators: room.spectators.length,
     logs: room.logs.slice(-6)
   };
 }
@@ -171,11 +182,20 @@ function broadcastRaw(room, obj) {
   for (const s of room.seats) {
     if (s.ws && s.ws.readyState === 1) { try { s.ws.send(str); } catch {} }
   }
+  for (const sp of room.spectators) {
+    if (sp.readyState === 1) { try { sp.send(str); } catch {} }
+  }
 }
 function broadcast(room) {
   for (const s of room.seats) {
     if (s.ws && s.ws.readyState === 1) {
       try { s.ws.send(JSON.stringify(buildState(room, s.seat))); } catch {}
+    }
+  }
+  if (room.spectators.length) {
+    const specState = JSON.stringify(buildState(room, -1));
+    for (const sp of room.spectators) {
+      if (sp.readyState === 1) { try { sp.send(specState); } catch {} }
     }
   }
 }
@@ -414,6 +434,34 @@ wss.on('connection', (ws) => {
         broadcast(r);
         break;
       }
+      case 'quickmatch': {
+        // join the first open public lobby, else create a new public room
+        let target = null;
+        for (const r of rooms.values()) {
+          if (r.isPublic && r.phase === 'lobby' && firstFreeSeat(r) >= 0) { target = r; break; }
+        }
+        if (target) {
+          const seat = firstFreeSeat(target);
+          seatPlayer(ws, target, seat, m.name || `Player ${seat + 1}`, m.avatar);
+          send(ws, { type: 'joined', code: target.code, token: ws.ctx.token, yourSeat: seat });
+          broadcast(target);
+        } else {
+          const code = genCode(); const r = newRoom(code); r.isPublic = true; rooms.set(code, r);
+          seatPlayer(ws, r, 0, m.name || 'Player 1', m.avatar); r.hostSeat = 0;
+          send(ws, { type: 'joined', code, token: ws.ctx.token, yourSeat: 0 });
+          broadcast(r);
+        }
+        break;
+      }
+      case 'spectate': {
+        const r = rooms.get((m.code || '').toUpperCase());
+        if (!r) return err(ws, 'Room not found');
+        if (!r.spectators.includes(ws)) r.spectators.push(ws);
+        ws.ctx = { code: r.code, seat: -1, token: null, spectator: true };
+        send(ws, { type: 'joined', code: r.code, token: null, yourSeat: -1, spectator: true });
+        send(ws, buildState(r, -1));
+        break;
+      }
       case 'addBot': {
         if (!room || room.phase !== 'lobby') return;
         if (ws.ctx.seat !== room.hostSeat) return err(ws, 'Only the host can edit seats');
@@ -505,6 +553,10 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     const room = ws.ctx.code ? rooms.get(ws.ctx.code) : null;
     if (!room) return;
+    if (ws.ctx.spectator) {
+      room.spectators = room.spectators.filter(x => x !== ws);
+      return;
+    }
     const s = room.seats[ws.ctx.seat];
     if (s && s.ws === ws) {
       s.connected = false; s.ws = null;
