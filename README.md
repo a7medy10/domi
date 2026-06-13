@@ -1,7 +1,8 @@
 # Team 101 Dominoes — Online Multiplayer
 
 Server-authoritative online dominoes for **up to 4 humans**; any empty seat is filled
-with a bot when the host starts. Teams are fixed: **Team A = seats 1 & 2**, **Team B = seats 3 & 4**.
+with a bot when the host starts. Teams are fixed and partners sit **across** the table:
+**Team A = seats 1 & 3**, **Team B = seats 2 & 4**, so turn order alternates **A, B, A, B**.
 3-minute turns, reconnect support, room codes.
 
 ## Layout

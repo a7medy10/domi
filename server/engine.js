@@ -74,8 +74,9 @@ function placeTile(game, seat, tile, side) {
 }
 
 function handScore(hand) { return hand.reduce((s, t) => s + t.top + t.bottom, 0); }
-function teamOf(seat) { return (seat === 0 || seat === 1) ? 'A' : 'B'; }
-function teamSeats(team) { return team === 'A' ? [0, 1] : [2, 3]; }
+// Partners sit across the table so turn order alternates teams: A,B,A,B.
+function teamOf(seat) { return (seat % 2 === 0) ? 'A' : 'B'; }
+function teamSeats(team) { return team === 'A' ? [0, 2] : [1, 3]; }
 function teamHandScore(game, team) { return teamSeats(team).reduce((s, i) => s + handScore(game.hands[i]), 0); }
 
 function anyCanPlay(game, seat) { return game.hands[seat].some(t => canPlay(t, game.board)); }
